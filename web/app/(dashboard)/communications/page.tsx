@@ -24,12 +24,7 @@ interface OutboundLog {
 }
 
 export default function CommunicationsPage() {
-  const [logs, setLogs] = useState<OutboundLog[]>([
-    { id: 'LOG01', recipient: 'Tanya Porwal (tanya@vyapaarx.com)', channel: 'Email', templateName: 'Monthly Profit & Loss Report', status: 'Delivered', timestamp: '2026-05-06 11:30' },
-    { id: 'LOG02', recipient: '+91 98765 43210 (Karan Mehta)', channel: 'WhatsApp', templateName: 'Overdue Payment Alert', status: 'Delivered', timestamp: '2026-05-06 10:15' },
-    { id: 'LOG03', recipient: 'Sneha Patel (sneha@vyapaarx.com)', channel: 'Email', templateName: 'Attendance Reminder', status: 'Queued', timestamp: '2026-05-06 13:00' },
-    { id: 'LOG04', recipient: '+91 96012 34567 (Rohan Sharma)', channel: 'WhatsApp', templateName: 'Shift Timings Allocation', status: 'Failed', timestamp: '2026-05-05 18:45' },
-  ]);
+  const [logs, setLogs] = useState<OutboundLog[]>([]);
 
   const [triggers, setTriggers] = useState({
     invoiceWhatsApp: true,
@@ -88,7 +83,7 @@ export default function CommunicationsPage() {
         subtitle="Configure automated Nodemailer emails, Twilio WhatsApp alerts, and AI copywriting triggers"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-6 space-y-6 text-left bg-[#09080F]">
         
         {/* UPPER ROW: AUTOMATION TOGGLES & AI DRAFER */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -154,7 +149,7 @@ export default function CommunicationsPage() {
                     placeholder="E.g., Write a highly urgent overdue payment warning requesting settlement of invoice to avoid credit limits hold..."
                     value={aiPrompt}
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setAiPrompt(e.target.value)}
-                    className="min-h-[80px] text-xs bg-muted/10 border-primary/10 focus-visible:ring-primary"
+                    className="min-h-[80px] text-xs bg-muted/10 border-primary/10 focus-visible:ring-primary text-foreground"
                   />
                 </div>
                 <div className="flex justify-end pt-1">
@@ -198,7 +193,7 @@ export default function CommunicationsPage() {
                   <Input
                     value={template.subject}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTemplate({ ...template, subject: e.target.value })}
-                    className="h-9 text-xs"
+                    className="h-9 text-xs text-foreground"
                   />
                 </div>
                 <div className="space-y-1">
@@ -206,7 +201,7 @@ export default function CommunicationsPage() {
                   <Textarea
                     value={template.body}
                     onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTemplate({ ...template, body: e.target.value })}
-                    className="min-h-[160px] text-xs"
+                    className="min-h-[160px] text-xs text-foreground"
                   />
                 </div>
                 <div className="pt-2 flex justify-end">
@@ -273,26 +268,34 @@ export default function CommunicationsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {logs.map(l => (
-                    <tr key={l.id} className="hover:bg-muted/10 transition-colors">
-                      <td className="p-3 text-xs font-semibold text-foreground">{l.recipient}</td>
-                      <td className="p-3">
-                        <Badge variant="outline" className="text-[9px] font-bold">
-                          {l.channel}
-                        </Badge>
+                  {logs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-xs text-muted-foreground">
+                        No campaign logs recorded yet. Configure pipelines or dispatch an automated template campaign above to initiate logs!
                       </td>
-                      <td className="p-3 text-xs text-slate-300 truncate max-w-[200px]">{l.templateName}</td>
-                      <td className="p-3">
-                        <Badge
-                          variant={l.status === 'Delivered' ? 'default' : l.status === 'Queued' ? 'secondary' : 'destructive'}
-                          className="text-[9px] font-bold"
-                        >
-                          {l.status}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground text-right">{l.timestamp}</td>
                     </tr>
-                  ))}
+                  ) : (
+                    logs.map(l => (
+                      <tr key={l.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="p-3 text-xs font-semibold text-foreground">{l.recipient}</td>
+                        <td className="p-3">
+                          <Badge variant="outline" className="text-[9px] font-bold">
+                            {l.channel}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-xs text-slate-300 truncate max-w-[200px]">{l.templateName}</td>
+                        <td className="p-3">
+                          <Badge
+                            variant={l.status === 'Delivered' ? 'default' : l.status === 'Queued' ? 'secondary' : 'destructive'}
+                            className="text-[9px] font-bold"
+                          >
+                            {l.status}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-xs text-muted-foreground text-right">{l.timestamp}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

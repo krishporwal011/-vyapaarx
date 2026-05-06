@@ -25,41 +25,7 @@ interface Transaction {
 }
 
 export default function PaymentsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: 'TXN-9021',
-      amount: 45000,
-      status: 'SUCCESS',
-      upiId: 'karan@okhdfcbank',
-      razorpayId: 'pay_Nod123XyZ',
-      invoiceId: 'INV-2026-0003',
-      payerName: 'Karan Mehta Co.',
-      settlementStatus: 'SETTLED',
-      createdAt: '2026-05-06 10:30'
-    },
-    {
-      id: 'TXN-9022',
-      amount: 112000,
-      status: 'PENDING',
-      upiId: 'tanya@okaxis',
-      razorpayId: 'pay_Ope456AbC',
-      invoiceId: 'INV-2026-0004',
-      payerName: 'Tanya Enterprises',
-      settlementStatus: 'UNSETTLED',
-      createdAt: '2026-05-06 11:15'
-    },
-    {
-      id: 'TXN-9023',
-      amount: 8500,
-      status: 'FAILED',
-      upiId: 'rohan@okicici',
-      razorpayId: 'pay_Fail789Qwe',
-      invoiceId: 'INV-2026-0005',
-      payerName: 'Rohan Sharma',
-      settlementStatus: 'UNSETTLED',
-      createdAt: '2026-05-05 18:45'
-    }
-  ]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const [qrAmount, setQrAmount] = useState('5000');
   const [payerNameInput, setPayerNameInput] = useState('Walk-In Client');
@@ -115,6 +81,15 @@ export default function PaymentsPage() {
     return matchesSearch && matchesStatus;
   });
 
+  // Calculate dynamics KPIs based on real transaction states
+  const settledTotal = transactions
+    .filter((t) => t.status === 'SUCCESS' && t.settlementStatus === 'SETTLED')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const pendingTotal = transactions
+    .filter((t) => t.status === 'PENDING' || (t.status === 'SUCCESS' && t.settlementStatus === 'UNSETTLED'))
+    .reduce((sum, t) => sum + t.amount, 0);
+
   return (
     <>
       <Topbar
@@ -122,7 +97,7 @@ export default function PaymentsPage() {
         subtitle="Manage secure Indian fintech integrations, dynamic UPI QR codes, and Razorpay settlements"
       />
 
-      <main className="flex-1 overflow-y-auto p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-6 space-y-6 text-left bg-[#09080F]">
 
         {/* TOP METRIC CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -131,7 +106,7 @@ export default function PaymentsPage() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                 <Landmark className="h-3.5 w-3.5 text-primary" /> Net Settlements
               </p>
-              <h3 className="text-2xl font-bold text-foreground mt-2">₹1,57,000</h3>
+              <h3 className="text-2xl font-bold text-foreground mt-2">₹{settledTotal.toLocaleString('en-IN')}</h3>
             </div>
             <p className="text-[9px] text-emerald-400 font-semibold mt-1">100% processed payouts</p>
           </Card>
@@ -161,7 +136,7 @@ export default function PaymentsPage() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                 <RefreshCw className="h-3.5 w-3.5 text-primary animate-pulse" /> Pending Clearings
               </p>
-              <h3 className="text-2xl font-bold text-foreground mt-2">₹1,12,000</h3>
+              <h3 className="text-2xl font-bold text-foreground mt-2">₹{pendingTotal.toLocaleString('en-IN')}</h3>
             </div>
             <p className="text-[9px] text-amber-500 font-semibold mt-1">Processing via HDFC settlement</p>
           </Card>
@@ -271,7 +246,7 @@ export default function PaymentsPage() {
                   placeholder="Search ledger..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="h-8.5 pl-8 w-44 text-xs bg-muted/20 border-0"
+                  className="h-8.5 pl-8 w-44 text-xs bg-muted/20 border-0 text-foreground"
                 />
               </div>
               <Button onClick={handleExportCSV} variant="outline" className="h-8.5 text-xs text-slate-300">
@@ -295,40 +270,43 @@ export default function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredTxns.map(t => (
-                    <tr key={t.id} className="hover:bg-muted/10 transition-colors">
-                      <td className="p-3 text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-[9px] font-bold">{t.id}</Badge>
-                      </td>
-                      <td className="p-3 text-xs text-slate-300 font-medium">{t.invoiceId}</td>
-                      <td className="p-3 text-xs text-foreground font-semibold">{t.payerName}</td>
-                      <td className="p-3 text-xs font-bold text-white">₹{t.amount.toLocaleString()}</td>
-                      <td className="p-3 text-xs text-muted-foreground">{t.razorpayId}</td>
-                      <td className="p-3">
-                        <Badge
-                          variant={t.status === 'SUCCESS' ? 'default' : t.status === 'PENDING' ? 'secondary' : 'destructive'}
-                          className="text-[9px] font-bold"
-                        >
-                          {t.status}
-                        </Badge>
-                      </td>
-                      <td className="p-3">
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] font-bold ${
-                            t.settlementStatus === 'SETTLED' ? 'text-green-400 border-green-500/20 bg-green-500/5' : 'text-amber-400 border-amber-500/20 bg-amber-500/5'
-                          }`}
-                        >
-                          {t.settlementStatus}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground text-right">{t.createdAt}</td>
-                    </tr>
-                  ))}
-                  {filteredTxns.length === 0 && (
+                  {filteredTxns.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-6 text-center text-xs text-muted-foreground">No matches found inside this ledger portfolio.</td>
+                      <td colSpan={8} className="p-8 text-center text-xs text-muted-foreground">
+                        No transactions registered yet inside this ledger. Generate and scan a dynamic UPI QR to record your first settlement!
+                      </td>
                     </tr>
+                  ) : (
+                    filteredTxns.map(t => (
+                      <tr key={t.id} className="hover:bg-muted/10 transition-colors">
+                        <td className="p-3 text-xs font-semibold text-foreground flex items-center gap-1.5">
+                          <Badge variant="outline" className="text-[9px] font-bold">{t.id}</Badge>
+                        </td>
+                        <td className="p-3 text-xs text-slate-300 font-medium">{t.invoiceId}</td>
+                        <td className="p-3 text-xs text-foreground font-semibold">{t.payerName}</td>
+                        <td className="p-3 text-xs font-bold text-white">₹{t.amount.toLocaleString('en-IN')}</td>
+                        <td className="p-3 text-xs text-muted-foreground">{t.razorpayId}</td>
+                        <td className="p-3">
+                          <Badge
+                            variant={t.status === 'SUCCESS' ? 'default' : t.status === 'PENDING' ? 'secondary' : 'destructive'}
+                            className="text-[9px] font-bold"
+                          >
+                            {t.status}
+                          </Badge>
+                        </td>
+                        <td className="p-3">
+                          <Badge
+                            variant="outline"
+                            className={`text-[9px] font-bold ${
+                              t.settlementStatus === 'SETTLED' ? 'text-green-400 border-green-500/20 bg-green-500/5' : 'text-amber-400 border-amber-500/20 bg-amber-500/5'
+                            }`}
+                          >
+                            {t.settlementStatus}
+                          </Badge>
+                        </td>
+                        <td className="p-3 text-xs text-muted-foreground text-right">{t.createdAt}</td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>

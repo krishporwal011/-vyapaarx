@@ -102,6 +102,7 @@ export interface Invoice {
     name: string;
     email?: string | null;
     state?: string | null;
+    gstin?: string | null;
   };
   supplier?: {
     id: string;
