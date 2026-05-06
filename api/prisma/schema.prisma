@@ -1,0 +1,230 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  password     String
+  businessName String?
+  phone        String?
+  avatar       String?
+  role         String     @default("admin")
+  isActive     Boolean    @default(true)
+  gstNumber    String?
+  
+  // Address fields directly on the User (since Mongoose had nested object)
+  street       String?
+  city         String?
+  state        String?
+  pincode      String?
+  country      String?    @default("India")
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  products     Product[]
+  customers    Customer[]
+  orders       Order[]
+  invoices     Invoice[]
+  suppliers    Supplier[]
+}
+
+model Product {
+  id                String      @id @default(uuid())
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  
+  name              String
+  sku               String      @unique
+  description       String?
+  category          String?
+  price             Float
+  costPrice         Float?
+  stock             Int         @default(0)
+  lowStockThreshold Int         @default(10)
+  unit              String      @default("pcs")
+  images            String[]
+  gstRate           Float       @default(18)
+  isActive          Boolean     @default(true)
+  tags              String[]
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  orderItems        OrderItem[]
+  invoiceItems      InvoiceItem[]
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  name      String
+  email     String?
+  phone     String?
+  type      String   @default("retail") // retail, wholesale, distributor
+  gstin     String?
+  tags      String[]
+  isActive  Boolean  @default(true)
+
+  // Address fields
+  street    String?
+  city      String?
+  state     String?
+  zipCode   String?
+  country   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders    Order[]
+  invoices  Invoice[]
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+
+  orderNumber     String      @unique
+  subtotal        Float
+  gstAmount       Float       @default(0)
+  discount        Float       @default(0)
+  total           Float
+
+  status          String      @default("pending") // pending, confirmed, processing, shipped, delivered, cancelled
+  paymentStatus   String      @default("unpaid")  // unpaid, partial, paid
+  paymentMethod   String?                         // cash, upi, bank_transfer, credit, other
+
+  // Shipping Address
+  street          String?
+  city            String?
+  state           String?
+  pincode         String?
+
+  notes           String?
+  deliveredAt     DateTime?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  items           OrderItem[]
+  invoices        Invoice[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  name       String
+  quantity   Int
+  price      Float
+  gstRate    Float    @default(18)
+  total      Float
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id])
+  orderId       String?
+  order         Order?        @relation(fields: [orderId], references: [id])
+  invoiceNumber String        @unique
+  customerId    String
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  supplierId    String?
+  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
+  subtotal      Float
+  gstAmount     Float
+  cgst          Float         @default(0)
+  sgst          Float         @default(0)
+  igst          Float         @default(0)
+  totalAmount   Float
+  paymentStatus String        @default("UNPAID") // PAID, UNPAID, PARTIAL
+  paymentMethod String?       // CASH, UPI, BANK_TRANSFER, CARD
+  status        String        @default("draft")  // draft, sent, paid, overdue, cancelled
+  dueDate       DateTime?
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items         InvoiceItem[]
+  payments      Payment[]
+  taxRecords    TaxRecord[]
+}
+
+model InvoiceItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  price       Float
+  discount    Float    @default(0)
+  gstRate     Float    @default(18)
+  hsnCode     String?
+  total       Float
+}
+
+model Payment {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount          Float
+  paymentMethod   String
+  referenceNumber String?
+  paymentDate     DateTime @default(now())
+}
+
+model TaxRecord {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  taxType     String   // CGST, SGST, IGST
+  rate        Float
+  amount      Float
+}
+
+model Supplier {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  supplierCode String    @unique
+  name         String
+  email        String?
+  phone        String?
+  gstNumber    String?
+  panNumber    String?
+  address      String?
+  city         String?
+  state        String?
+  country      String?   @default("India")
+  pincode      String?
+  status       String    @default("ACTIVE") // ACTIVE/INACTIVE
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  invoices     Invoice[]
+}

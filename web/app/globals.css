@@ -1,0 +1,93 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 224 71.4% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 71.4% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 71.4% 4.1%;
+    --primary: 249 88% 69%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 220 14.3% 95.9%;
+    --secondary-foreground: 220.9 39.3% 11%;
+    --muted: 220 14.3% 95.9%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 220 14.3% 95.9%;
+    --accent-foreground: 220.9 39.3% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 249 88% 69%;
+    --radius: 0.75rem;
+
+    /* VyapaarX brand tokens */
+    --brand: 249 88% 69%;
+    --brand-glow: rgba(108, 99, 255, 0.15);
+    --teal: 174 72% 56%;
+    --gold: 35 100% 62%;
+    --rose: 0 84% 60%;
+    --emerald: 142 71% 45%;
+  }
+
+  .dark {
+    --background: 224 71.4% 4.1%;
+    --foreground: 210 20% 98%;
+    --card: 224 71.4% 6%;
+    --card-foreground: 210 20% 98%;
+    --popover: 224 71.4% 5%;
+    --popover-foreground: 210 20% 98%;
+    --primary: 249 88% 69%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 16.9%;
+    --muted-foreground: 217.9 10.6% 64.9%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 249 88% 69%;
+
+    --brand-glow: rgba(108, 99, 255, 0.2);
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+  ::-webkit-scrollbar { @apply w-1.5; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-border; }
+}
+
+@layer utilities {
+  .brand-gradient {
+    background: linear-gradient(135deg, hsl(249 88% 69%) 0%, hsl(280 80% 65%) 100%);
+  }
+  .brand-glow {
+    box-shadow: 0 0 32px var(--brand-glow), 0 4px 16px rgba(0,0,0,0.1);
+  }
+  .glass {
+    @apply backdrop-blur-xl border border-white/10;
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .dark .glass {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .kpi-up { @apply text-emerald-500; }
+  .kpi-down { @apply text-rose-500; }
+  .nav-active {
+    @apply bg-primary/10 text-primary font-semibold;
+  }
+  .chart-tooltip {
+    @apply bg-card border border-border rounded-lg shadow-xl p-3;
+  }
+}
