@@ -9,6 +9,7 @@ const {
   getInvoiceByIdSchema,
 } = require('../validations/invoice.validation');
 const { protect } = require('../middleware/auth');
+const { authorizeRoles } = require('../middleware/rbac');
 
 router.use(protect);
 
@@ -18,16 +19,16 @@ router.get('/analytics', invoiceController.getInvoiceAnalytics);
 // @GET /api/invoices
 router.get('/', validate(getInvoicesSchema), invoiceController.getInvoices);
 
-// @POST /api/invoices
-router.post('/', validate(createInvoiceSchema), invoiceController.createInvoice);
+// @POST /api/invoices (Requires admin or accountant)
+router.post('/', authorizeRoles('admin', 'accountant'), validate(createInvoiceSchema), invoiceController.createInvoice);
 
 // @GET /api/invoices/:id
 router.get('/:id', validate(getInvoiceByIdSchema), invoiceController.getInvoiceById);
 
-// @PUT /api/invoices/:id
-router.put('/:id', validate(updateInvoiceSchema), invoiceController.updateInvoice);
+// @PUT /api/invoices/:id (Requires admin or accountant)
+router.put('/:id', authorizeRoles('admin', 'accountant'), validate(updateInvoiceSchema), invoiceController.updateInvoice);
 
-// @DELETE /api/invoices/:id
-router.delete('/:id', validate(getInvoiceByIdSchema), invoiceController.deleteInvoice);
+// @DELETE /api/invoices/:id (Requires admin only)
+router.delete('/:id', authorizeRoles('admin'), validate(getInvoiceByIdSchema), invoiceController.deleteInvoice);
 
 module.exports = router;

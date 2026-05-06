@@ -37,9 +37,9 @@ export default function CustomersPage() {
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <KpiCard label="Total Customers" value={isLoading ? "..." : String(response?.total || 0)} trend="neutral" icon={Users} iconBg="bg-violet-500/10" iconColor="text-violet-500" index={0} />
-          <KpiCard label="Revenue" value="--" trend="neutral" icon={IndianRupee} iconBg="bg-emerald-500/10" iconColor="text-emerald-500" index={1} />
-          <KpiCard label="Wholesale" value="--" trend="neutral" icon={Star} iconBg="bg-amber-500/10" iconColor="text-amber-500" index={2} />
-          <KpiCard label="Distributors" value="--" trend="neutral" icon={ShoppingCart} iconBg="bg-teal-500/10" iconColor="text-teal-500" index={3} />
+          <KpiCard label="Revenue" value={isLoading ? "..." : "₹0"} trend="neutral" icon={IndianRupee} iconBg="bg-emerald-500/10" iconColor="text-emerald-500" index={1} />
+          <KpiCard label="Wholesale" value={isLoading ? "..." : String(customers.filter((c: any) => c.type === 'wholesale').length)} trend="neutral" icon={Star} iconBg="bg-amber-500/10" iconColor="text-amber-500" index={2} />
+          <KpiCard label="Distributors" value={isLoading ? "..." : String(customers.filter((c: any) => c.type === 'distributor').length)} trend="neutral" icon={ShoppingCart} iconBg="bg-teal-500/10" iconColor="text-teal-500" index={3} />
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">

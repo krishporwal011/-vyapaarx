@@ -33,23 +33,17 @@ interface SaleOrder {
 export default function SalesPage() {
   const { t } = useLanguage();
 
-  const [sales, setSales] = useState<SaleOrder[]>([
-    { id: 'VX-48291', customer: 'Priya Sharma', phone: '9876543210', gstNumber: '27AAAAA1111A1Z1', itemsCount: 3, subtotal: 10500, discount: 0, amount: 12400, gst: 1900, gstRate: 18, hsnCode: 'HSN8471', status: 'PAID', paymentMethod: 'UPI POS', date: 'May 6', notes: 'Instant checkout clearance' },
-    { id: 'VX-48292', customer: 'Rahul Verma', phone: '9123456789', gstNumber: '24BBBBB2222B2Z2', itemsCount: 1, subtotal: 7400, discount: 0, amount: 8750, gst: 1350, gstRate: 18, hsnCode: 'HSN8517', status: 'PENDING', paymentMethod: 'Razorpay', date: 'May 6' },
-    { id: 'VX-48293', customer: 'Anjali Mehta', phone: '8877665544', gstNumber: '07CCCCC3333C3Z3', itemsCount: 5, subtotal: 26500, discount: 500, amount: 31200, gst: 4700, gstRate: 18, hsnCode: 'HSN8471', status: 'PAID', paymentMethod: 'Bank Transfer', date: 'May 5' },
-    { id: 'VX-48294', customer: 'Suresh Kumar', phone: '9988776655', gstNumber: '08DDDDD4444D4Z4', itemsCount: 2, subtotal: 4800, discount: 100, amount: 5600, gst: 800, gstRate: 18, hsnCode: 'HSN8528', status: 'OVERDUE', paymentMethod: 'Cash', date: 'May 5' }
-  ]);
-
+  const [sales, setSales] = useState<SaleOrder[]>([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'ALL' | 'PAID' | 'PENDING' | 'OVERDUE'>('ALL');
-  const [selectedSaleId, setSelectedSaleId] = useState<string | null>('VX-48291');
+  const [selectedSaleId, setSelectedSaleId] = useState<string | null>(null);
 
   // Form Fields
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [customerInput, setCustomerInput] = useState('Walk-In Client');
-  const [productInput, setProductInput] = useState('Ultra HD Monitor');
+  const [customerInput, setCustomerInput] = useState('');
+  const [productInput, setProductInput] = useState('');
   const [qtyInput, setQtyInput] = useState('1');
-  const [rateInput, setRateInput] = useState('24500');
+  const [rateInput, setRateInput] = useState('');
   const [discountInput, setDiscountInput] = useState('0');
   const [gstRateInput, setGstRateInput] = useState('18');
   const [paymentInput, setPaymentInput] = useState('UPI POS');

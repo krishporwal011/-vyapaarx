@@ -26,25 +26,21 @@ interface Supplier {
 export default function SuppliersPage() {
   const { t } = useLanguage();
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-    { id: 'SUP-001', name: 'Intel Semiconductors', phone: '9876543210', gstNumber: '27AAAAA1111A1Z1', state: 'Maharashtra', balance: 45000, status: 'ACTIVE', city: 'Pune' },
-    { id: 'SUP-002', name: 'Krishna Logistics Ltd.', phone: '9123456789', gstNumber: '24BBBBB2222B2Z2', state: 'Gujarat', balance: 112000, status: 'ACTIVE', city: 'Surat' },
-    { id: 'SUP-003', name: 'Apex Accessories Corp.', phone: '8877665544', gstNumber: '07CCCCC3333C3Z3', state: 'New Delhi', balance: 0, status: 'INACTIVE', city: 'Noida' }
-  ]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
-  const [selectedSupId, setSelectedSupId] = useState<string | null>('SUP-001');
+  const [selectedSupId, setSelectedSupId] = useState<string | null>(null);
 
   // Form Fields
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
   const [gstInput, setGstInput] = useState('');
-  const [stateInput, setStateInput] = useState('Maharashtra');
+  const [stateInput, setStateInput] = useState('');
 
   // Transaction quick form fields
-  const [paymentAmount, setPaymentAmount] = useState('5000');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [payMethod, setPayMethod] = useState<'CASH' | 'UPI'>('CASH');
 
   const selectedSupplier = suppliers.find(s => s.id === selectedSupId) || null;

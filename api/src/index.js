@@ -2,8 +2,16 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const Sentry = require('@sentry/node');
 
 require('dotenv').config();
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN || "https://placeholder-dsn@o0.ingest.sentry.io/0",
+  tracesSampleRate: 1.0,
+});
 
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
@@ -18,43 +26,106 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+app.use(Sentry.Handlers.requestHandler());
+
 const PORT = process.env.PORT || 5000;
 
 /**
- * Allowed Origins
+ * ============================================
+ * SECURITY MIDDLEWARE
+ * ============================================
  */
+
+/**
+ * Helmet Security Headers
+ */
+app.use(helmet());
+
+/**
+ * Rate Limiting
+ */
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.',
+  },
+});
+
+/**
+ * Apply Rate Limiter to API
+ */
+app.use('/api', apiLimiter);
+
+/**
+ * ============================================
+ * ALLOWED ORIGINS
+ * ============================================
+ */
+
 const allowedOrigins = [
   'http://localhost:3000',
   'https://vyapaarx.vercel.app',
 ];
 
 /**
- * Middleware
+ * ============================================
+ * CORS CONFIGURATION
+ * ============================================
  */
+
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, Postman, curl)
-      if (!origin) return callback(null, true);
+      /**
+       * Allow:
+       * - Postman
+       * - Mobile apps
+       * - Server-to-server requests
+       */
+      if (!origin) {
+        return callback(null, true);
+      }
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
-      return callback(new Error('CORS policy violation'));
+      return callback(
+        new Error(`CORS policy violation: ${origin} not allowed`)
+      );
     },
     credentials: true,
   })
 );
 
-app.use(express.json());
+/**
+ * ============================================
+ * BODY PARSERS
+ * ============================================
+ */
+
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+/**
+ * ============================================
+ * COOKIES + LOGGING
+ * ============================================
+ */
+
 app.use(cookieParser());
 app.use(morgan('dev'));
 
 /**
- * Root Route
+ * ============================================
+ * ROOT ROUTE
+ * ============================================
  */
+
 app.get('/', (req, res) => {
   return res.status(200).json({
     success: true,
@@ -63,8 +134,11 @@ app.get('/', (req, res) => {
 });
 
 /**
- * Health Check Route
+ * ============================================
+ * HEALTH CHECK ROUTE
+ * ============================================
  */
+
 app.get('/api/health', (req, res) => {
   return res.status(200).json({
     success: true,
@@ -75,8 +149,11 @@ app.get('/api/health', (req, res) => {
 });
 
 /**
- * API Routes
+ * ============================================
+ * API ROUTES
+ * ============================================
  */
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -87,13 +164,35 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/ai', aiRoutes);
 
 /**
- * Global Error Handler
+ * ============================================
+ * 404 HANDLER
+ * ============================================
  */
+
+app.use('*', (req, res) => {
+  return res.status(404).json({
+    success: false,
+    message: 'API route not found',
+  });
+});
+
+/**
+ * ============================================
+ * GLOBAL ERROR HANDLER
+ * ============================================
+ */
+
+app.use(Sentry.Handlers.errorHandler());
+
 app.use(errorHandler);
 
 /**
- * Start Server
+ * ============================================
+ * START SERVER
+ * ============================================
  */
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 API server running on port ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });

@@ -27,8 +27,8 @@ interface Transaction {
 export default function PaymentsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  const [qrAmount, setQrAmount] = useState('5000');
-  const [payerNameInput, setPayerNameInput] = useState('Walk-In Client');
+  const [qrAmount, setQrAmount] = useState('');
+  const [payerNameInput, setPayerNameInput] = useState('');
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [generatedQr, setGeneratedQr] = useState<string | null>(null);
 
