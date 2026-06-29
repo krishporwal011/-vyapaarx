@@ -2,6 +2,10 @@ const prisma = require('../utils/prisma');
 const { supabase } = require('../utils/supabase');
 
 const protect = async (req, res, next) => {
+  // Temporary Debug Logging
+  console.log('[Auth Debug] Incoming request to protect route.');
+  console.log('[Auth Debug] Authorization header exists:', !!req.headers.authorization);
+
   let token;
 
   if (req.cookies && req.cookies.jwt) {
@@ -10,16 +14,25 @@ const protect = async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   }
 
+  if (token) {
+    console.log('[Auth Debug] Bearer token prefix (first 20 chars):', token.substring(0, 20));
+  } else {
+    console.log('[Auth Debug] No Bearer token extracted.');
+  }
+
   if (!token) {
     return res.status(401).json({ success: false, error: 'Not authorized, no token' });
   }
 
   try {
     // Verify the token with Supabase Auth
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const result = await supabase.auth.getUser(token);
+    console.log('[Auth Debug] supabase.auth.getUser(token) result:', JSON.stringify(result));
+    
+    const { data: { user }, error } = result;
     
     if (error || !user) {
-      console.log('[Auth Middleware] Supabase verification failed:', error?.message || 'No user');
+      console.log('[Auth Debug] Supabase verification failed. Message:', error?.message || 'No user object returned');
       return res.status(401).json({ success: false, error: 'Not authorized, token failed' });
     }
 
