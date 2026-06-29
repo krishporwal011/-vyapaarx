@@ -7,9 +7,13 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Users, IndianRupee, ShoppingCart, Star, Search, Plus, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import {
+  Users, IndianRupee, ShoppingCart, Star, Search, Plus, Phone, Mail, MapPin, Loader2, X
+} from 'lucide-react';
 import { useState } from 'react';
-import { useCustomers } from '@/hooks/api/useCustomers';
+import { toast } from 'react-hot-toast';
+import { useCustomers, useCreateCustomer } from '@/hooks/api/useCustomers';
 
 const typeColors: Record<string, string> = {
   retail: 'bg-muted text-muted-foreground',
@@ -24,15 +28,67 @@ export default function CustomersPage() {
   
   const { data: response, isLoading } = useCustomers(page, 50);
   const customers = response?.data || [];
+
+  const createCustomerMutation = useCreateCustomer();
+
+  // Modals States
+  const [addModalOpen, setAddModalOpen] = useState(false);
+
+  // Form Fields State
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [custType, setCustType] = useState<'retail' | 'wholesale' | 'distributor'>('wholesale');
+  const [gstin, setGstin] = useState('');
+  const [state, setState] = useState('Maharashtra');
+  const [city, setCity] = useState('Mumbai');
+  const [address, setAddress] = useState('');
   
   const filtered = customers.filter(c =>
     (type === 'All' || c.type === type.toLowerCase()) &&
     (!search || c.name.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const handleCreateCustomer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) {
+      toast.error('Customer Name is required');
+      return;
+    }
+    createCustomerMutation.mutate({
+      name,
+      email: email || undefined,
+      phone: phone || undefined,
+      type: custType,
+      gstin: gstin || undefined,
+      state: state || undefined,
+      city: city || undefined,
+      street: address || undefined,
+      tags: [],
+      isActive: true,
+    }, {
+      onSuccess: () => {
+        setAddModalOpen(false);
+        // reset fields
+        setName('');
+        setEmail('');
+        setPhone('');
+        setCustType('wholesale');
+        setGstin('');
+        setState('Maharashtra');
+        setCity('Mumbai');
+        setAddress('');
+      }
+    });
+  };
+
   return (
     <>
-      <Topbar title="Customers" subtitle="Manage your customer base" action={{ label: 'Add Customer', onClick: () => {} }} />
+      <Topbar
+        title="Customers"
+        subtitle="Manage your customer base"
+        action={{ label: 'Add Customer', onClick: () => setAddModalOpen(true), icon: Plus }}
+      />
       <main className="flex-1 overflow-y-auto p-6 space-y-6">
 
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -55,7 +111,9 @@ export default function CustomersPage() {
               </button>
             ))}
           </div>
-          <Button size="sm" className="h-9 brand-gradient text-white gap-1.5 ml-auto"><Plus className="h-3.5 w-3.5" />Add</Button>
+          <Button onClick={() => setAddModalOpen(true)} size="sm" className="h-9 brand-gradient text-white gap-1.5 ml-auto">
+            <Plus className="h-3.5 w-3.5" />Add Customer
+          </Button>
         </div>
 
         {isLoading ? (
@@ -107,6 +165,82 @@ export default function CustomersPage() {
           </div>
         )}
       </main>
+
+      {/* ADD CUSTOMER MODAL */}
+      {addModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <Card className="bg-card border-border w-full max-w-md shadow-xl relative text-left">
+            <button onClick={() => setAddModalOpen(false)} className="absolute top-4 right-4 text-muted-foreground hover:text-white">
+              <X className="h-4 w-4" />
+            </button>
+            <CardHeader>
+              <CardTitle className="text-sm font-bold text-white uppercase tracking-wider">Add New Customer</CardTitle>
+            </CardHeader>
+            <form onSubmit={handleCreateCustomer}>
+              <CardContent className="space-y-4 text-xs">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-name">Customer Name</Label>
+                    <Input id="cust-name" value={name} onChange={e => setName(e.target.value)} required placeholder="E.g. Priya Sharma" className="h-9 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-email">Email Address</Label>
+                    <Input id="cust-email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="priya@example.com" className="h-9 text-xs" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-phone">Phone Number</Label>
+                    <Input id="cust-phone" value={phone} onChange={e => setPhone(e.target.value)} placeholder="9876543210" className="h-9 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-type">Customer Type</Label>
+                    <select
+                      id="cust-type"
+                      value={custType}
+                      onChange={e => setCustType(e.target.value as 'retail' | 'wholesale' | 'distributor')}
+                      className="w-full h-9 bg-card border border-border text-xs rounded-lg px-2 text-foreground focus:outline-none"
+                    >
+                      <option value="wholesale">Wholesale Partner</option>
+                      <option value="retail">Retail Client</option>
+                      <option value="distributor">Distributor</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-gstin">GSTIN (Optional)</Label>
+                    <Input id="cust-gstin" value={gstin} onChange={e => setGstin(e.target.value)} placeholder="27AAAAA0000A1Z1" className="h-9 text-xs font-mono" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-state">State / Place of Supply</Label>
+                    <Input id="cust-state" value={state} onChange={e => setState(e.target.value)} placeholder="Maharashtra" className="h-9 text-xs" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-city">City</Label>
+                    <Input id="cust-city" value={city} onChange={e => setCity(e.target.value)} placeholder="Mumbai" className="h-9 text-xs" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="cust-address">Billing Address</Label>
+                    <Input id="cust-address" value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Corporate Park, Andheri" className="h-9 text-xs" />
+                  </div>
+                </div>
+              </CardContent>
+              <div className="p-4 border-t border-border flex justify-end gap-2.5">
+                <Button type="button" onClick={() => setAddModalOpen(false)} variant="outline" className="h-9 text-xs">Cancel</Button>
+                <Button type="submit" disabled={createCustomerMutation.isPending} className="brand-gradient text-white text-xs h-9 font-semibold">
+                  {createCustomerMutation.isPending ? 'Saving...' : 'Save'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
     </>
   );
 }

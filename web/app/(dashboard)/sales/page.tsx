@@ -62,6 +62,10 @@ export default function SalesPage() {
       toast.error('Please enter a valid quantity');
       return;
     }
+    if (Number(rateInput) <= 0) {
+      toast.error('Please enter a valid price/rate');
+      return;
+    }
 
     const selectedProduct = products.find(p => p.id === selectedProductId);
 
@@ -73,7 +77,8 @@ export default function SalesPage() {
             product: selectedProductId,
             quantity: Number(qtyInput),
             price: Number(rateInput),
-            tax: calcGst
+            tax: calcGst,
+            gstRate: Number(gstRateInput)
           }
         ],
         totalAmount: calcTotal,

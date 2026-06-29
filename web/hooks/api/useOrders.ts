@@ -18,7 +18,7 @@ export function useCreateOrder() {
   return useMutation({
     mutationFn: async (newOrder: {
       customer: string;
-      items: Array<{ product: string; quantity: number; price: number; tax: number }>;
+      items: Array<{ product: string; quantity: number; price: number; tax: number; gstRate?: number }>;
       totalAmount: number;
       taxAmount: number;
       status?: string;
