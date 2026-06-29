@@ -14,13 +14,14 @@ import {
 import {
   TrendingUp, ShoppingCart, Package, Users,
   Receipt, AlertTriangle, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, Clock, Truck, IndianRupee, Activity, Loader2
+  CheckCircle2, Clock, Truck, IndianRupee, Activity, Loader2, Plus
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAnalyticsOverview, useAnalyticsRevenue } from '@/hooks/api/useAnalytics';
 import { useOrders } from '@/hooks/api/useOrders';
 import { useProducts, useTopProducts } from '@/hooks/api/useProducts';
 import { format, parseISO } from 'date-fns';
+import { useAuth } from '@/contexts/AuthContext';
 
 const COLORS = ['#6c63ff', '#4ecdc4', '#ffb347', '#ff6b6b', '#a855f7'];
 
@@ -47,6 +48,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { data: overview, isLoading: loadingOverview } = useAnalyticsOverview();
   const { data: revenueDaily, isLoading: loadingRevenue } = useAnalyticsRevenue(7);
   const { data: ordersData, isLoading: loadingOrders } = useOrders(1, 5);
@@ -71,7 +73,7 @@ export default function DashboardPage() {
     <>
       <Topbar
         title="Dashboard"
-        subtitle="Welcome back, Tanya 👋  —  May 6, 2026"
+        subtitle={`Welcome back, ${user?.name || 'User'} 👋  —  ${format(new Date(), 'MMMM d, yyyy')}`}
         action={{ label: 'New Order', onClick: () => router.push('/sales/new') }}
       />
 
@@ -79,8 +81,8 @@ export default function DashboardPage() {
 
         {/* KPI Grid */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard label="Total Revenue" value={loadingOverview ? "..." : `₹${overview?.totalRevenue?.toLocaleString('en-IN') || 0}`} change="+18.4%" trend="up" icon={IndianRupee} iconBg="bg-violet-500/10" iconColor="text-violet-500" index={0} />
-          <KpiCard label="Orders" value={loadingOverview ? "..." : String(overview?.totalOrders || 0)} change="+12.1%" trend="up" icon={ShoppingCart} iconBg="bg-amber-500/10" iconColor="text-amber-500" index={1} />
+          <KpiCard label="Total Revenue" value={loadingOverview ? "..." : `₹${overview?.totalRevenue?.toLocaleString('en-IN') || 0}`} change="Live Revenue" trend="neutral" icon={IndianRupee} iconBg="bg-violet-500/10" iconColor="text-violet-500" index={0} />
+          <KpiCard label="Orders" value={loadingOverview ? "..." : String(overview?.totalOrders || 0)} change="Processed" trend="neutral" icon={ShoppingCart} iconBg="bg-amber-500/10" iconColor="text-amber-500" index={1} />
           <KpiCard label="Products" value={loadingOverview ? "..." : String(overview?.totalProducts || 0)} change="Active" trend="neutral" icon={Package} iconBg="bg-teal-500/10" iconColor="text-teal-500" index={2} />
           <KpiCard label="Customers" value={loadingOverview ? "..." : String(overview?.totalCustomers || 0)} change="Total" trend="neutral" icon={Users} iconBg="bg-emerald-500/10" iconColor="text-emerald-500" index={3} />
         </div>
@@ -122,34 +124,51 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-                  <defs>
-                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6c63ff" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#6c63ff" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} width={45} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area type="monotone" dataKey="revenue" stroke="#6c63ff" strokeWidth={2} fill="url(#revGrad)" />
-                  <Area type="monotone" dataKey="orders" stroke="#f43f5e" strokeWidth={2} fill="url(#expGrad)" />
-                </AreaChart>
-              </ResponsiveContainer>
-              <div className="flex gap-4 mt-2">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <div className="h-2 w-2 rounded-full bg-violet-500" />Revenue
+              {chartData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+                  <div className="h-10 w-10 rounded-full bg-violet-500/10 flex items-center justify-center text-primary">
+                    <Activity className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">No recent business activity recorded</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Your dynamic revenue & order trends will appear here once you record sales.</p>
+                  </div>
+                  <Button size="sm" variant="outline" className="h-8 text-xs font-semibold gap-1" onClick={() => router.push('/sales/new')}>
+                    <Plus className="h-3 w-3" /> Create Your First Invoice
+                  </Button>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <div className="h-2 w-2 rounded-full bg-rose-500" />Orders
-                </div>
-              </div>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+                      <defs>
+                        <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6c63ff" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#6c63ff" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="expGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
+                          <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} width={45} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Area type="monotone" dataKey="revenue" stroke="#6c63ff" strokeWidth={2} fill="url(#revGrad)" />
+                      <Area type="monotone" dataKey="orders" stroke="#f43f5e" strokeWidth={2} fill="url(#expGrad)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  <div className="flex gap-4 mt-2">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="h-2 w-2 rounded-full bg-violet-500" />Revenue
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <div className="h-2 w-2 rounded-full bg-rose-500" />Orders
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -215,7 +234,14 @@ export default function DashboardPage() {
                   {loadingOrders ? (
                     <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mx-auto mb-2 text-primary" /></td></tr>
                   ) : recentOrdersList.length === 0 ? (
-                    <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">No recent orders</td></tr>
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground space-y-2">
+                        <p className="text-xs">No sales orders registered yet.</p>
+                        <Button size="sm" variant="outline" className="h-8 text-xs font-semibold gap-1 mx-auto block" onClick={() => router.push('/sales/new')}>
+                          <Plus className="h-3 w-3" /> Record Your First Sale
+                        </Button>
+                      </td>
+                    </tr>
                   ) : recentOrdersList.map((o) => {
                     const s = statusConfig[o.status] || { label: o.status, variant: 'outline', icon: Activity };
                     return (
@@ -245,7 +271,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold">Low Stock Alerts</CardTitle>
-                <Badge variant="destructive" className="text-xs">12 items</Badge>
+                <Badge variant="destructive" className="text-xs">{overview?.lowStockCount || 0} items</Badge>
               </div>
               <CardDescription>Products below threshold</CardDescription>
             </CardHeader>
@@ -253,7 +279,12 @@ export default function DashboardPage() {
               {loadingProducts ? (
                 <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
               ) : lowStockList.length === 0 ? (
-                <div className="text-center py-6 text-sm text-muted-foreground">All products are well stocked!</div>
+                <div className="text-center py-8 text-sm text-muted-foreground space-y-3">
+                  <p className="text-xs">All products are well stocked!</p>
+                  <Button size="sm" variant="outline" className="h-8 text-xs font-semibold gap-1 mx-auto block" onClick={() => router.push('/inventory')}>
+                    <Plus className="h-3 w-3" /> Add Product Inventory
+                  </Button>
+                </div>
               ) : lowStockList.map((item) => (
                 <div key={item.id} className="space-y-1.5">
                   <div className="flex justify-between text-xs">

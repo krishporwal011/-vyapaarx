@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'react-hot-toast';
 import {
   Eye, EyeOff, Zap, ArrowRight, Loader2, ShieldCheck, Sparkles, TrendingUp, CheckCircle, Smartphone
@@ -32,7 +33,7 @@ export default function LoginPage() {
   // Forgot Password / OTP Flow States
   const [authStep, setAuthStep] = useState<'LOGIN' | 'FORGOT' | 'OTP' | 'RESET'>('LOGIN');
   const [forgotEmail, setForgotEmail] = useState('');
-  const [otpCode, setOtpCode] = useState(['', '', '', '']);
+  const [otpCode, setOtpCode] = useState(['', '', '', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
 
   const {
@@ -48,22 +49,35 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(data);
-      toast.success('Signed in successfully');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Authentication failed');
+      toast.error(err.message || 'Authentication failed');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleForgotSubmit = (e: React.FormEvent) => {
+  const handleForgotSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail || !forgotEmail.includes('@')) {
       toast.error('Please enter a valid business email');
       return;
     }
-    setAuthStep('OTP');
-    toast.success('verification PIN sent to your email');
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: forgotEmail,
+        options: {
+          shouldCreateUser: true,
+        }
+      });
+      if (error) throw error;
+      setAuthStep('OTP');
+      toast.success('Verification OTP code sent to your email');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send OTP code');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOtpChange = (index: number, val: string) => {
@@ -73,30 +87,61 @@ export default function LoginPage() {
     setOtpCode(newOtp);
 
     // Auto focus next input
-    if (val && index < 3) {
+    if (val && index < 5) {
       const nextInput = document.getElementById(`otp-${index + 1}`);
       nextInput?.focus();
     }
   };
 
-  const handleOtpVerify = (e: React.FormEvent) => {
+  const handleOtpVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otpCode.some(c => !c)) {
-      toast.error('Please enter complete 4-digit PIN');
+      toast.error('Please enter complete 6-digit OTP');
       return;
     }
-    setAuthStep('RESET');
-    toast.success('PIN Verified Successfully');
+    setIsSubmitting(true);
+    try {
+      const { data: { session }, error } = await supabase.auth.verifyOtp({
+        email: forgotEmail,
+        token: otpCode.join(''),
+        type: 'email', // Use email/magiclink type
+      });
+      if (error) throw error;
+      
+      if (session) {
+        localStorage.setItem('token', session.access_token);
+        toast.success('Authentication successful!');
+        router.push('/dashboard');
+      } else {
+        setAuthStep('RESET');
+        toast.success('OTP code verified successfully');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'OTP verification failed');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleResetSubmit = (e: React.FormEvent) => {
+  const handleResetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword.length < 6) {
       toast.error('Password must be at least 6 characters');
       return;
     }
-    toast.success('Password updated successfully! Please sign in');
-    setAuthStep('LOGIN');
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+      if (error) throw error;
+      toast.success('Password updated successfully! Please sign in');
+      setAuthStep('LOGIN');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to reset password');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -318,12 +363,12 @@ export default function LoginPage() {
                   <h1 className="text-2xl font-bold font-display text-white tracking-tight flex items-center gap-1.5">
                     <Smartphone className="h-5 w-5 text-primary" /> Verification Code
                   </h1>
-                  <p className="text-sm text-slate-400">Enter the 4-digit PIN code sent to *{forgotEmail}*</p>
+                  <p className="text-sm text-slate-400">Enter the 6-digit OTP code sent to *{forgotEmail}*</p>
                 </div>
 
                 <form onSubmit={handleOtpVerify} className="space-y-5">
-                  <div className="flex justify-between items-center gap-3">
-                    {[0, 1, 2, 3].map((idx) => (
+                  <div className="flex justify-between items-center gap-2">
+                    {[0, 1, 2, 3, 4, 5].map((idx) => (
                       <Input
                         key={idx}
                         id={`otp-${idx}`}
@@ -336,8 +381,10 @@ export default function LoginPage() {
                     ))}
                   </div>
 
-                  <Button type="submit" className="w-full h-11 brand-gradient text-white font-semibold">Verify PIN</Button>
-                  <button type="button" onClick={() => setAuthStep('FORGOT')} className="w-full text-center text-xs text-slate-400 hover:underline">Resend PIN</button>
+                  <Button type="submit" disabled={isSubmitting} className="w-full h-11 brand-gradient text-white font-semibold">
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mx-auto" /> : 'Verify OTP'}
+                  </Button>
+                  <button type="button" disabled={isSubmitting} onClick={handleForgotSubmit} className="w-full text-center text-xs text-slate-400 hover:underline">Resend OTP</button>
                 </form>
               </motion.div>
             )}

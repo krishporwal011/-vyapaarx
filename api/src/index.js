@@ -8,10 +8,12 @@ const Sentry = require('@sentry/node');
 
 require('dotenv').config();
 
-Sentry.init({
-  dsn: process.env.SENTRY_DSN || "https://placeholder-dsn@o0.ingest.sentry.io/0",
-  tracesSampleRate: 1.0,
-});
+if (process.env.SENTRY_DSN && Sentry.Handlers) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 1.0,
+  });
+}
 
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
@@ -26,7 +28,9 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-app.use(Sentry.Handlers.requestHandler());
+if (process.env.SENTRY_DSN && Sentry.Handlers) {
+  app.use(Sentry.Handlers.requestHandler());
+}
 
 const PORT = process.env.PORT || 5000;
 
@@ -182,7 +186,9 @@ app.use('*', (req, res) => {
  * ============================================
  */
 
-app.use(Sentry.Handlers.errorHandler());
+if (process.env.SENTRY_DSN && Sentry.Handlers) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 app.use(errorHandler);
 
@@ -192,7 +198,13 @@ app.use(errorHandler);
  * ============================================
  */
 
-app.listen(PORT, '0.0.0.0', () => {
+const { initializeDatabase, verifySupabaseConnection } = require('./utils/dbInit');
+
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 API server running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  // Run database initialization and connection check
+  await initializeDatabase();
+  await verifySupabaseConnection();
 });
