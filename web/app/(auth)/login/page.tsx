@@ -26,6 +26,7 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const router = useRouter();
   const [show, setShow] = useState(false);
   const { login } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
