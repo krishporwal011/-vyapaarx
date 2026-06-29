@@ -62,7 +62,9 @@ export default function RegisterPage() {
       await register({ ...data, role: selectedRole });
       toast.success('Workspace created successfully!');
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Failed to create workspace');
+      console.error('[Registration Error]', err);
+      const message = err.message === '{}' || !err.message ? 'Failed to create workspace' : err.message;
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

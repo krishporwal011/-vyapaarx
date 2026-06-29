@@ -51,7 +51,9 @@ export default function LoginPage() {
     try {
       await login(data);
     } catch (err: any) {
-      toast.error(err.message || 'Authentication failed');
+      console.error('[Login Error]', err);
+      const message = err.message === '{}' || !err.message ? 'Authentication failed' : err.message;
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -75,7 +77,11 @@ export default function LoginPage() {
       setAuthStep('OTP');
       toast.success('Verification OTP code sent to your email');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to send OTP code');
+      console.error('[Send OTP Error]', err);
+      const message = err.message === '{}' || !err.message 
+        ? 'Failed to send OTP code. Your Supabase SMTP provider might be rate-limited or unconfigured.' 
+        : err.message;
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -118,7 +124,9 @@ export default function LoginPage() {
         toast.success('OTP code verified successfully');
       }
     } catch (err: any) {
-      toast.error(err.message || 'OTP verification failed');
+      console.error('[Verify OTP Error]', err);
+      const message = err.message === '{}' || !err.message ? 'OTP verification failed' : err.message;
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +147,9 @@ export default function LoginPage() {
       toast.success('Password updated successfully! Please sign in');
       setAuthStep('LOGIN');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to reset password');
+      console.error('[Reset Password Error]', err);
+      const message = err.message === '{}' || !err.message ? 'Failed to reset password' : err.message;
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
