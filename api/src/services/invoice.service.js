@@ -2,7 +2,9 @@ const prisma = require('../utils/prisma');
 const AppError = require('../utils/AppError');
 
 const getInvoices = async (userId, queryOptions) => {
-  const { page, limit, status, paymentStatus, customerId, search } = queryOptions;
+  const page = parseInt(queryOptions.page) || 1;
+  const limit = parseInt(queryOptions.limit) || 20;
+  const { status, paymentStatus, customerId, search } = queryOptions;
   
   const where = { userId };
   if (status) where.status = status;

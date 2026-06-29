@@ -1,3 +1,7 @@
+// VyapaarX — Production Prisma Schema
+// Relation field names use camelCase (Prisma convention) so that all service
+// include/select queries work without capitalisation mismatches.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,228 +11,265 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model BusinessConfig {
-  id            String   @id
-  userId        String   @unique
-  gstin         String?
-  pan           String?
-  bankName      String?
-  accountNo     String?
-  ifscCode      String?
-  invoicePrefix String   @default("INV")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime
-  User          User     @relation(fields: [userId], references: [id])
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────────────────────────────────────
+model User {
+  id           String  @id @default(uuid())
+  name         String
+  email        String  @unique
+  password     String
+  businessName String?
+  phone        String?
+  avatar       String?
+  role         String  @default("admin")
+  isActive     Boolean @default(true)
+  gstNumber    String?
 
-model CashbookEntry {
-  id        String   @id
-  userId    String
-  type      String
-  category  String
-  amount    Float
-  notes     String?
-  date      DateTime @default(now())
+  // Address fields (flat — no nested object)
+  street  String?
+  city    String?
+  state   String?
+  pincode String?
+  country String? @default("India")
+
   createdAt DateTime @default(now())
-  updatedAt DateTime
-  User      User     @relation(fields: [userId], references: [id])
+  updatedAt DateTime @updatedAt
+
+  // Relations — camelCase
+  products        Product[]
+  customers       Customer[]
+  orders          Order[]
+  invoices        Invoice[]
+  suppliers       Supplier[]
+  businessConfig  BusinessConfig?
+  cashbookEntries CashbookEntry[]
+  staff           Staff[]
+
+  @@map("User")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCT
+// ─────────────────────────────────────────────────────────────────────────────
+model Product {
+  id                String  @id @default(uuid())
+  userId            String
+  name              String
+  sku               String  @unique
+  description       String?
+  category          String?
+  price             Float
+  costPrice         Float?
+  stock             Int     @default(0)
+  lowStockThreshold Int     @default(10)
+  unit              String  @default("pcs")
+  images            String[]
+  gstRate           Float   @default(18)
+  isActive          Boolean @default(true)
+  tags              String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  orderItems   OrderItem[]
+  invoiceItems InvoiceItem[]
+
+  @@map("Product")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMER
+// ─────────────────────────────────────────────────────────────────────────────
 model Customer {
-  id        String    @id
-  userId    String
-  name      String
-  email     String?
-  phone     String?
-  type      String    @default("retail")
-  gstin     String?
-  tags      String[]
-  isActive  Boolean   @default(true)
-  street    String?
-  city      String?
-  state     String?
-  zipCode   String?
-  country   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime
-  User      User      @relation(fields: [userId], references: [id])
-  Invoice   Invoice[]
-  Order     Order[]
-}
+  id       String  @id @default(uuid())
+  userId   String
+  name     String
+  email    String?
+  phone    String?
+  type     String  @default("retail")
+  gstin    String?
+  tags     String[]
+  isActive Boolean @default(true)
 
-model Invoice {
-  id            String        @id
-  userId        String
-  orderId       String?
-  invoiceNumber String        @unique
-  customerId    String
-  supplierId    String?
-  subtotal      Float
-  gstAmount     Float
-  cgst          Float         @default(0)
-  sgst          Float         @default(0)
-  igst          Float         @default(0)
-  totalAmount   Float
-  paymentStatus String        @default("UNPAID")
-  paymentMethod String?
-  status        String        @default("draft")
-  dueDate       DateTime?
-  paidAt        DateTime?
-  notes         String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime
-  Customer      Customer      @relation(fields: [customerId], references: [id])
-  Order         Order?        @relation(fields: [orderId], references: [id])
-  Supplier      Supplier?     @relation(fields: [supplierId], references: [id])
-  User          User          @relation(fields: [userId], references: [id])
-  InvoiceItem   InvoiceItem[]
-  Payment       Payment[]
-  TaxRecord     TaxRecord[]
-}
+  // Flat address
+  street  String?
+  city    String?
+  state   String?
+  zipCode String?
+  country String?
 
-model InvoiceItem {
-  id        String  @id
-  invoiceId String
-  productId String
-  quantity  Int
-  price     Float
-  discount  Float   @default(0)
-  gstRate   Float   @default(18)
-  hsnCode   String?
-  total     Float
-  Invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  Product   Product @relation(fields: [productId], references: [id])
-}
-
-model LeaveRequest {
-  id        String   @id
-  staffId   String
-  type      String
-  dates     String
-  days      Int
-  status    String   @default("Pending")
   createdAt DateTime @default(now())
-  updatedAt DateTime
-  Staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  orders   Order[]
+  invoices Invoice[]
+
+  @@map("Customer")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDER
+// ─────────────────────────────────────────────────────────────────────────────
 model Order {
-  id            String      @id
-  userId        String
-  customerId    String?
-  orderNumber   String      @unique
-  subtotal      Float
-  gstAmount     Float       @default(0)
-  discount      Float       @default(0)
-  total         Float
-  status        String      @default("pending")
-  paymentStatus String      @default("unpaid")
+  id          String  @id @default(uuid())
+  userId      String
+  customerId  String?
+  orderNumber String  @unique
+  subtotal    Float
+  gstAmount   Float   @default(0)
+  discount    Float   @default(0)
+  total       Float
+
+  status        String  @default("pending")
+  paymentStatus String  @default("unpaid")
   paymentMethod String?
-  street        String?
-  city          String?
-  state         String?
-  pincode       String?
-  notes         String?
-  deliveredAt   DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime
-  Invoice       Invoice[]
-  Customer      Customer?   @relation(fields: [customerId], references: [id])
-  User          User        @relation(fields: [userId], references: [id])
-  OrderItem     OrderItem[]
+
+  // Shipping address
+  street  String?
+  city    String?
+  state   String?
+  pincode String?
+
+  notes       String?
+  deliveredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  items    OrderItem[]
+  invoices Invoice[]
+
+  @@map("Order")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDER ITEM
+// ─────────────────────────────────────────────────────────────────────────────
 model OrderItem {
-  id        String  @id
+  id        String @id @default(uuid())
   orderId   String
   productId String
   name      String
   quantity  Int
   price     Float
-  gstRate   Float   @default(18)
+  gstRate   Float  @default(18)
   total     Float
-  Order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  Product   Product @relation(fields: [productId], references: [id])
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("OrderItem")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// INVOICE
+// ─────────────────────────────────────────────────────────────────────────────
+model Invoice {
+  id            String  @id @default(uuid())
+  userId        String
+  orderId       String?
+  invoiceNumber String  @unique
+  customerId    String
+  supplierId    String?
+  subtotal      Float
+  gstAmount     Float
+  cgst          Float   @default(0)
+  sgst          Float   @default(0)
+  igst          Float   @default(0)
+  totalAmount   Float
+  paymentStatus String  @default("UNPAID")
+  paymentMethod String?
+  status        String  @default("draft")
+  dueDate       DateTime?
+  paidAt        DateTime?
+  notes         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id])
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  order      Order?      @relation(fields: [orderId], references: [id])
+  supplier   Supplier?   @relation(fields: [supplierId], references: [id])
+  items      InvoiceItem[]
+  payments   Payment[]
+  taxRecords TaxRecord[]
+
+  @@map("Invoice")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVOICE ITEM
+// ─────────────────────────────────────────────────────────────────────────────
+model InvoiceItem {
+  id        String @id @default(uuid())
+  invoiceId String
+  productId String
+  quantity  Int
+  price     Float
+  discount  Float  @default(0)
+  gstRate   Float  @default(18)
+  hsnCode   String?
+  total     Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("InvoiceItem")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYMENT
+// ─────────────────────────────────────────────────────────────────────────────
 model Payment {
-  id               String   @id
-  invoiceId        String
-  amount           Float
-  paymentMethod    String
-  referenceNumber  String?
-  paymentDate      DateTime @default(now())
-  createdAt        DateTime @default(now())
-  payerName        String?
-  razorpayId       String?
-  settlementStatus String   @default("SETTLED")
-  status           String   @default("SUCCESS")
-  updatedAt        DateTime @default(now())
+  id              String @id @default(uuid())
+  invoiceId       String
+  amount          Float
+  paymentMethod   String
+  referenceNumber String?
+  paymentDate     DateTime @default(now())
+
+  status           String @default("SUCCESS")
   upiId            String?
-  Invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  razorpayId       String?
+  payerName        String?
+  settlementStatus String @default("SETTLED")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("Payment")
 }
 
-model Payslip {
-  id            String   @id
-  staffId       String
-  baseSalary    Float
-  overtimeHours Float    @default(0)
-  deductions    Float    @default(0)
-  bonus         Float    @default(0)
-  totalPay      Float
-  status        String   @default("Processing")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime
-  Staff         Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+// ─────────────────────────────────────────────────────────────────────────────
+// TAX RECORD
+// ─────────────────────────────────────────────────────────────────────────────
+model TaxRecord {
+  id        String @id @default(uuid())
+  invoiceId String
+  taxType   String
+  rate      Float
+  amount    Float
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("TaxRecord")
 }
 
-model Product {
-  id                String        @id
-  userId            String
-  name              String
-  sku               String        @unique
-  description       String?
-  category          String?
-  price             Float
-  costPrice         Float?
-  stock             Int           @default(0)
-  lowStockThreshold Int           @default(10)
-  unit              String        @default("pcs")
-  images            String[]
-  gstRate           Float         @default(18)
-  isActive          Boolean       @default(true)
-  tags              String[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime
-  InvoiceItem       InvoiceItem[]
-  OrderItem         OrderItem[]
-  User              User          @relation(fields: [userId], references: [id])
-}
-
-model Staff {
-  id           String         @id
-  userId       String
-  name         String
-  email        String
-  phone        String
-  role         String
-  department   String         @default("Logistics")
-  salary       Float          @default(30000)
-  joiningDate  DateTime       @default(now())
-  status       String         @default("Present")
-  shift        String         @default("Morning")
-  address      String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime
-  LeaveRequest LeaveRequest[]
-  Payslip      Payslip[]
-  User         User           @relation(fields: [userId], references: [id])
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
+// SUPPLIER
+// ─────────────────────────────────────────────────────────────────────────────
 model Supplier {
-  id           String    @id
+  id           String @id @default(uuid())
   userId       String
-  supplierCode String    @unique
+  supplierCode String @unique
   name         String
   email        String?
   phone        String?
@@ -237,57 +278,124 @@ model Supplier {
   address      String?
   city         String?
   state        String?
-  country      String?   @default("India")
+  country      String? @default("India")
   pincode      String?
-  status       String    @default("ACTIVE")
+  status       String  @default("ACTIVE")
   notes        String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime
-  Invoice      Invoice[]
-  User         User      @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id])
+  invoices Invoice[]
+
+  @@map("Supplier")
 }
 
-model TaxRecord {
-  id        String  @id
-  invoiceId String
-  taxType   String
-  rate      Float
-  amount    Float
-  Invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+// ─────────────────────────────────────────────────────────────────────────────
+// BUSINESS CONFIG / SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+model BusinessConfig {
+  id            String @id @default(uuid())
+  userId        String @unique
+  gstin         String?
+  pan           String?
+  bankName      String?
+  accountNo     String?
+  ifscCode      String?
+  invoicePrefix String @default("INV")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("BusinessConfig")
 }
 
-model User {
-  id             String          @id
-  name           String
-  email          String          @unique
-  password       String
-  businessName   String?
-  phone          String?
-  avatar         String?
-  role           String          @default("admin")
-  isActive       Boolean         @default(true)
-  gstNumber      String?
-  street         String?
-  city           String?
-  state          String?
-  pincode        String?
-  country        String?         @default("India")
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime
-  BusinessConfig BusinessConfig?
-  CashbookEntry  CashbookEntry[]
-  Customer       Customer[]
-  Invoice        Invoice[]
-  Order          Order[]
-  Product        Product[]
-  Staff          Staff[]
-  Supplier       Supplier[]
+// ─────────────────────────────────────────────────────────────────────────────
+// CASHBOOK
+// ─────────────────────────────────────────────────────────────────────────────
+model CashbookEntry {
+  id       String @id @default(uuid())
+  userId   String
+  type     String
+  category String
+  amount   Float
+  notes    String?
+  date     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("CashbookEntry")
 }
 
-model users {
-  id            String    @id
-  email         String    @unique
-  full_name     String?
-  business_name String?
-  created_at    DateTime? @default(now()) @db.Timestamptz(6)
+// ─────────────────────────────────────────────────────────────────────────────
+// STAFF
+// ─────────────────────────────────────────────────────────────────────────────
+model Staff {
+  id          String @id @default(uuid())
+  userId      String
+  name        String
+  email       String
+  phone       String
+  role        String
+  department  String   @default("Logistics")
+  salary      Float    @default(30000)
+  joiningDate DateTime @default(now())
+  status      String   @default("Present")
+  shift       String   @default("Morning")
+  address     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  leaveRequests LeaveRequest[]
+  payslips      Payslip[]
+
+  @@map("Staff")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LEAVE REQUEST
+// ─────────────────────────────────────────────────────────────────────────────
+model LeaveRequest {
+  id      String @id @default(uuid())
+  staffId String
+  type    String
+  dates   String
+  days    Int
+  status  String @default("Pending")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@map("LeaveRequest")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PAYSLIP
+// ─────────────────────────────────────────────────────────────────────────────
+model Payslip {
+  id            String @id @default(uuid())
+  staffId       String
+  baseSalary    Float
+  overtimeHours Float  @default(0)
+  deductions    Float  @default(0)
+  bonus         Float  @default(0)
+  totalPay      Float
+  status        String @default("Processing")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@map("Payslip")
 }

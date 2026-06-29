@@ -2,7 +2,9 @@ const prisma = require('../utils/prisma');
 const AppError = require('../utils/AppError');
 
 const getProducts = async (userId, queryOptions) => {
-  const { page, limit, search, category, lowStock } = queryOptions;
+  const page = parseInt(queryOptions.page) || 1;
+  const limit = parseInt(queryOptions.limit) || 20;
+  const { search, category, lowStock } = queryOptions;
   
   const where = { userId };
   

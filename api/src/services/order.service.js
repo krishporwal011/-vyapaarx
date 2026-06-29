@@ -2,7 +2,9 @@ const prisma = require('../utils/prisma');
 const AppError = require('../utils/AppError');
 
 const getOrders = async (userId, queryOptions) => {
-  const { page, limit, status, paymentStatus } = queryOptions;
+  const page = parseInt(queryOptions.page) || 1;
+  const limit = parseInt(queryOptions.limit) || 20;
+  const { status, paymentStatus } = queryOptions;
   
   const where = { userId };
   if (status) where.status = status;
@@ -46,12 +48,12 @@ const createOrder = async (userId, orderData) => {
         paymentStatus: paymentStatus || 'unpaid',
         items: {
           create: items.map(item => ({
-            productId: item.product,
-            name: "Item", // We can fetch actual names in a real scenario, or require it from frontend
+            productId: item.product || item.productId,
+            name: item.name || 'Item',
             quantity: item.quantity,
             price: item.price,
-            gstRate: item.tax > 0 ? (item.tax / item.price) * 100 : 0,
-            total: item.price * item.quantity + item.tax
+            gstRate: item.gstRate || (item.tax > 0 && item.price > 0 ? (item.tax / item.price) * 100 : 18),
+            total: item.price * item.quantity + (item.tax || 0)
           }))
         }
       },

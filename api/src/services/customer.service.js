@@ -2,7 +2,9 @@ const prisma = require('../utils/prisma');
 const AppError = require('../utils/AppError');
 
 const getCustomers = async (userId, queryOptions) => {
-  const { page, limit, search, type } = queryOptions;
+  const page = parseInt(queryOptions.page) || 1;
+  const limit = parseInt(queryOptions.limit) || 20;
+  const { search, type } = queryOptions;
   
   const where = { userId };
 

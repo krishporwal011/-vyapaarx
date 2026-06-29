@@ -31,8 +31,9 @@ const getOverview = async (userId) => {
 };
 
 const getRevenue = async (userId, periodDays) => {
+  const days = parseInt(periodDays) || 30;
   const startDate = new Date();
-  startDate.setDate(startDate.getDate() - periodDays);
+  startDate.setDate(startDate.getDate() - days);
 
   // Group by date to get daily revenue. 
   // Postgres DATE_TRUNC is best for this via $queryRaw.
@@ -44,7 +45,7 @@ const getRevenue = async (userId, periodDays) => {
     FROM "Order"
     WHERE "userId" = ${userId} 
       AND "createdAt" >= ${startDate} 
-      AND "paymentStatus" = 'paid'
+      AND ("paymentStatus" = 'paid' OR "paymentStatus" = 'PAID')
     GROUP BY TO_CHAR("createdAt", 'YYYY-MM-DD')
     ORDER BY "_id" ASC
   `;
