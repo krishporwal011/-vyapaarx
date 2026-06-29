@@ -137,6 +137,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (authData.session) {
         setSession(authData.session);
         localStorage.setItem('token', authData.session.access_token);
+        
+        // Explicitly call /auth/me after login and set user from the API response
+        try {
+          const res = await apiClient.get('/auth/me');
+          if (res.data.success && res.data.data) {
+            setUser(res.data.data);
+          } else {
+            throw new Error('Backend failed to return user data');
+          }
+        } catch (apiErr) {
+          console.error('[Login] Backend sync error fetching /auth/me:', apiErr);
+          throw apiErr;
+        }
       }
 
       toast.success('Logged in successfully');
@@ -152,6 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = async (data: Record<string, any>) => {
     try {
       const { name, email, password, businessName, role } = data;
+
+      // Step 1: Create account in Supabase Auth
       const { data: authData, error } = await supabase.auth.signUp({
         email,
         password,
@@ -163,30 +178,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           },
         },
       });
-
       if (error) throw error;
 
-      // Upsert profile info into Supabase DB users table
-      if (authData.user) {
-        try {
-          const { error: dbError } = await supabase.from('users').upsert({
-            id: authData.user.id,
-            email: authData.user.email || email,
-            full_name: name,
-            business_name: businessName,
-            created_at: new Date().toISOString(),
-          });
+      // Step 2: Immediately sign in to get a valid session + access_token
+      const { data: sessionData, error: loginErr } = 
+        await supabase.auth.signInWithPassword({ email, password });
+      if (loginErr) throw loginErr;
 
-          if (dbError) {
-            console.error('[Supabase DB Error] Could not sync user profile:', dbError.message);
-          }
-        } catch (dbErr: unknown) {
-          const dbErrMsg = dbErr instanceof Error ? dbErr.message : 'Unknown database sync error';
-          console.error('[Supabase DB Error] Table insertion error:', dbErrMsg);
+      // Step 3: Call Express API with Supabase token — this creates the 
+      // user in Neon via Prisma (auth middleware handles upsert automatically)
+      if (sessionData?.session?.access_token) {
+        try {
+          await apiClient.post('/auth/register', {
+            name,
+            email,
+            password,
+            businessName,
+          });
+        } catch (apiErr) {
+          // Non-fatal: auth middleware will create the user on first 
+          // protected route call anyway
+          console.warn('[Signup] Backend sync warning:', apiErr);
         }
       }
 
-      toast.success('Account created successfully. Please verify your email before signing in.');
+      // Sign out after registration — user must verify email first
+      await supabase.auth.signOut();
+
+      toast.success('Account created! Please verify your email before signing in.');
       router.push('/login');
     } catch (err: unknown) {
       console.error('[Signup Error]', err);
