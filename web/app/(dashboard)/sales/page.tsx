@@ -100,7 +100,37 @@ export default function SalesPage() {
   };
 
   const handleExportLedger = () => {
+    if (orders.length === 0) {
+      toast.error('No sales data to export');
+      return;
+    }
+    const headers = ['Order Number', 'Customer', 'Date', 'Payment Status', 'Status', 'Total (INR)'];
+    const rows = orders.map(s => [
+      s.orderNumber,
+      s.customer?.name || 'Walk-in Customer',
+      new Date(s.createdAt).toLocaleDateString('en-IN'),
+      s.paymentStatus,
+      s.status,
+      s.total
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `sales_ledger_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     toast.success('Sales ledger exported successfully as CSV!');
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleDownload = () => {
+    window.print();
   };
 
   const filtered = orders.filter(s => {
@@ -130,7 +160,7 @@ export default function SalesPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between border-b border-border bg-[#09080F] px-6 py-3.5 text-left">
+      <div className="flex items-center justify-between border-b border-border bg-[#09080F] px-6 py-3.5 text-left print:hidden">
         <div>
           <h2 className="text-base font-bold text-foreground flex items-center gap-2">
             <ShoppingCart className="h-5 w-5 text-primary" /> {t.title || 'Sales & Orders'}
@@ -151,7 +181,7 @@ export default function SalesPage() {
       <main className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 text-left bg-[#09080F]">
 
         {/* LEFT PANEL */}
-        <div className="lg:col-span-4 border-r border-border flex flex-col overflow-hidden">
+        <div className="lg:col-span-4 border-r border-border flex flex-col overflow-hidden print:hidden">
           <div className="p-4 border-b border-border space-y-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -216,10 +246,10 @@ export default function SalesPage() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="lg:col-span-8 overflow-y-auto p-6 bg-[#050408]/20 flex flex-col justify-between">
+        <div className="lg:col-span-8 overflow-y-auto p-6 bg-[#050408]/20 flex flex-col justify-between print:w-full print:p-0">
           {selectedSale ? (
             <div className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 gap-3 print:hidden">
                 <div className="flex items-center gap-3">
                   <div className="h-11 w-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                     <Receipt className="h-5.5 w-5.5 text-primary" />
@@ -232,8 +262,8 @@ export default function SalesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><Printer className="h-3.5 w-3.5" /> {t.print || 'Print'}</Button>
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1"><FileText className="h-3.5 w-3.5" /> {t.download || 'Download'}</Button>
+                  <Button onClick={handlePrint} variant="outline" size="sm" className="h-8 text-xs gap-1"><Printer className="h-3.5 w-3.5" /> {t.print || 'Print'}</Button>
+                  <Button onClick={handleDownload} variant="outline" size="sm" className="h-8 text-xs gap-1"><FileText className="h-3.5 w-3.5" /> {t.download || 'Download'}</Button>
                   <Badge className={`text-[10px] font-bold ${
                     selectedSale.paymentStatus.toLowerCase() === 'paid'
                       ? 'bg-green-500/15 text-green-400 border border-green-500/20'
@@ -244,7 +274,7 @@ export default function SalesPage() {
                 </div>
               </div>
 
-              <Card className="bg-[#0A0912] border border-border overflow-hidden">
+              <Card id="invoice-print-area" className="bg-[#0A0912] border border-border overflow-hidden print:bg-white print:text-black">
                 <CardContent className="p-6 space-y-6">
                   <div className="flex justify-between border-b border-border pb-4">
                     <div className="space-y-1">
@@ -459,6 +489,43 @@ export default function SalesPage() {
           </Card>
         </div>
       )}
+      {/* Custom Print Style Sheet */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          body {
+            background: white !important;
+            color: black !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+          main, div, nav, header, section {
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+          }
+          #invoice-print-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            background: white !important;
+            color: black !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 20px !important;
+          }
+          #invoice-print-area * {
+            color: black !important;
+            background: transparent !important;
+            border-color: #e5e7eb !important;
+          }
+          #invoice-print-area th {
+            color: #374151 !important;
+          }
+        }
+      `}} />
     </>
   );
 }
