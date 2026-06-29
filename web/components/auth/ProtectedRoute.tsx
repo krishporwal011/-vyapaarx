@@ -10,13 +10,17 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  const isPublicRoute = 
+    pathname.startsWith('/login') || 
+    pathname.startsWith('/register') || 
+    pathname.startsWith('/forgot-password') || 
+    pathname.startsWith('/reset-password');
+
   useEffect(() => {
-    if (!isLoading && !user) {
-      if (!pathname.startsWith('/login') && !pathname.startsWith('/register')) {
-        router.replace('/login');
-      }
+    if (!isLoading && !user && !isPublicRoute) {
+      router.replace('/login');
     }
-  }, [user, isLoading, router, pathname]);
+  }, [user, isLoading, router, isPublicRoute]);
 
   if (isLoading) {
     return (
@@ -29,8 +33,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If user is not loaded and not on login page, render nothing until redirect happens
-  if (!user && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
+  // If user is not loaded and not on a public route, render nothing until redirect happens
+  if (!user && !isPublicRoute) {
     return null;
   }
 

@@ -16,26 +16,35 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  session: any;
+  loading: boolean;
   isLoading: boolean;
   login: (data: Record<string, any>) => Promise<void>;
+  signup: (data: Record<string, any>) => Promise<void>;
   register: (data: Record<string, any>) => Promise<void>;
   logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+
+  const loading = isLoading; // Alias to satisfy context signature
 
   useEffect(() => {
     // Check session on mount
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          localStorage.setItem('token', session.access_token);
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        setSession(currentSession);
+        if (currentSession) {
+          localStorage.setItem('token', currentSession.access_token);
           // Sync with local backend
           try {
             const res = await apiClient.get('/auth/me');
@@ -43,21 +52,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(res.data.data);
             } else {
               setUser({
-                id: session.user.id,
-                email: session.user.email || '',
-                name: session.user.user_metadata?.name || '',
-                businessName: session.user.user_metadata?.businessName || '',
-                role: session.user.user_metadata?.role || 'admin',
+                id: currentSession.user.id,
+                email: currentSession.user.email || '',
+                name: currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || '',
+                businessName: currentSession.user.user_metadata?.business_name || currentSession.user.user_metadata?.businessName || '',
+                role: currentSession.user.user_metadata?.role || 'admin',
               });
             }
           } catch {
             // Backend unavailable or error, use session data
             setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              name: session.user.user_metadata?.name || '',
-              businessName: session.user.user_metadata?.businessName || '',
-              role: session.user.user_metadata?.role || 'admin',
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              name: currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || '',
+              businessName: currentSession.user.user_metadata?.business_name || currentSession.user.user_metadata?.businessName || '',
+              role: currentSession.user.user_metadata?.role || 'admin',
             });
           }
         } else {
@@ -67,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('Error checkSession:', error);
         setUser(null);
+        setSession(null);
       } finally {
         setIsLoading(false);
       }
@@ -75,30 +85,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkSession();
 
     // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       setIsLoading(true);
-      if (session) {
-        localStorage.setItem('token', session.access_token);
+      setSession(currentSession);
+      if (currentSession) {
+        localStorage.setItem('token', currentSession.access_token);
         try {
           const res = await apiClient.get('/auth/me');
           if (res.data.success && res.data.data) {
             setUser(res.data.data);
           } else {
             setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              name: session.user.user_metadata?.name || '',
-              businessName: session.user.user_metadata?.businessName || '',
-              role: session.user.user_metadata?.role || 'admin',
+              id: currentSession.user.id,
+              email: currentSession.user.email || '',
+              name: currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || '',
+              businessName: currentSession.user.user_metadata?.business_name || currentSession.user.user_metadata?.businessName || '',
+              role: currentSession.user.user_metadata?.role || 'admin',
             });
           }
         } catch {
           setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || '',
-            businessName: session.user.user_metadata?.businessName || '',
-            role: session.user.user_metadata?.role || 'admin',
+            id: currentSession.user.id,
+            email: currentSession.user.email || '',
+            name: currentSession.user.user_metadata?.full_name || currentSession.user.user_metadata?.name || '',
+            businessName: currentSession.user.user_metadata?.business_name || currentSession.user.user_metadata?.businessName || '',
+            role: currentSession.user.user_metadata?.role || 'admin',
           });
         }
       } else {
@@ -124,19 +135,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
 
       if (authData.session) {
+        setSession(authData.session);
         localStorage.setItem('token', authData.session.access_token);
       }
 
       toast.success('Logged in successfully');
       router.push('/dashboard');
     } catch (err: unknown) {
+      console.error('[Login Error]', err);
       const message = err instanceof Error ? err.message : 'Login failed';
       toast.error(message);
       throw new Error(message);
     }
   };
 
-  const register = async (data: Record<string, any>) => {
+  const signup = async (data: Record<string, any>) => {
     try {
       const { name, email, password, businessName, role } = data;
       const { data: authData, error } = await supabase.auth.signUp({
@@ -144,8 +157,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         password,
         options: {
           data: {
-            name,
-            businessName,
+            full_name: name,
+            business_name: businessName,
             role: role || 'admin',
           },
         },
@@ -153,38 +166,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (error) throw error;
 
-      // After successful signup, store user details in database (Supabase database public.users table)
+      // Upsert profile info into Supabase DB users table
       if (authData.user) {
         try {
-          const { error: dbError } = await supabase.from('users').insert([
-            {
-              id: authData.user.id,
-              email: authData.user.email || email,
-              name: name,
-              created_at: new Date().toISOString(),
-            },
-          ]);
+          const { error: dbError } = await supabase.from('users').upsert({
+            id: authData.user.id,
+            email: authData.user.email || email,
+            full_name: name,
+            business_name: businessName,
+            created_at: new Date().toISOString(),
+          });
 
           if (dbError) {
-            console.error('[Supabase DB Error] Could not insert profile info:', dbError.message);
+            console.error('[Supabase DB Error] Could not sync user profile:', dbError.message);
           }
         } catch (dbErr: unknown) {
-          const dbErrMsg = dbErr instanceof Error ? dbErr.message : 'Unknown database error';
+          const dbErrMsg = dbErr instanceof Error ? dbErr.message : 'Unknown database sync error';
           console.error('[Supabase DB Error] Table insertion error:', dbErrMsg);
         }
       }
 
-      if (authData.session) {
-        localStorage.setItem('token', authData.session.access_token);
-      }
-
-      toast.success('Account created successfully');
-      router.push('/dashboard');
+      toast.success('Account created successfully. Please verify your email before signing in.');
+      router.push('/login');
     } catch (err: unknown) {
+      console.error('[Signup Error]', err);
       const message = err instanceof Error ? err.message : 'Registration failed';
       toast.error(message);
       throw new Error(message);
     }
+  };
+
+  const register = async (data: Record<string, any>) => {
+    await signup(data);
   };
 
   const logout = async () => {
@@ -194,14 +207,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Logout error', error);
     } finally {
       setUser(null);
+      setSession(null);
       localStorage.removeItem('token');
       router.push('/login');
       toast.success('Logged out successfully');
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast.success('A password reset link has been sent to your email.');
+    } catch (err: unknown) {
+      console.error('[Reset Password Request Error]', err);
+      const message = err instanceof Error ? err.message : 'Reset password request failed';
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
+  const updatePassword = async (password: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password,
+      });
+      if (error) throw error;
+      toast.success('Password updated successfully! Please sign in');
+      router.push('/login');
+    } catch (err: unknown) {
+      console.error('[Update Password Error]', err);
+      const message = err instanceof Error ? err.message : 'Update password failed';
+      toast.error(message);
+      throw new Error(message);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, session, loading, isLoading, login, signup, register, logout, resetPassword, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
@@ -214,4 +259,3 @@ export function useAuth() {
   }
   return context;
 }
-

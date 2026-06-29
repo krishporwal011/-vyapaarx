@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import {
-  Eye, EyeOff, Zap, ArrowRight, ArrowLeft, Loader2, Sparkles, Building, User, Phone, CheckCircle, ShieldAlert
+  Eye, EyeOff, Zap, ArrowRight, ArrowLeft, Loader2, Sparkles, User, Building, Phone, CheckCircle
 } from 'lucide-react';
 
 const registerSchema = z.object({
@@ -22,14 +22,24 @@ const registerSchema = z.object({
   phone: z.string().optional(),
   businessName: z.string().min(2, 'Business name must be at least 2 characters'),
   email: z.string().email('Please enter a valid business email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .refine((val) => /[A-Z]/.test(val), 'Password must contain at least one uppercase letter')
+    .refine((val) => /[a-z]/.test(val), 'Password must contain at least one lowercase letter')
+    .refine((val) => /[0-9]/.test(val), 'Password must contain at least one number'),
+  confirmPassword: z.string().min(8, 'Confirm Password must be at least 8 characters'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords must match',
+  path: ['confirmPassword'],
 });
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const [show, setShow] = useState(false);
-  const { register } = useAuth();
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const { signup } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Multi-step Registration wizard states
@@ -43,12 +53,12 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: '', phone: '', businessName: '', email: '', password: '' },
+    defaultValues: { name: '', phone: '', businessName: '', email: '', password: '', confirmPassword: '' },
   });
 
   const handleNextStep = async () => {
     // Validate Step 1 fields before advancing
-    const isStep1Valid = await trigger(['name', 'email', 'password']);
+    const isStep1Valid = await trigger(['name', 'email', 'password', 'confirmPassword']);
     if (isStep1Valid) {
       setStep(2);
     } else {
@@ -59,8 +69,7 @@ export default function RegisterPage() {
   const onSubmit = async (data: RegisterValues) => {
     setIsSubmitting(true);
     try {
-      await register({ ...data, role: selectedRole });
-      toast.success('Workspace created successfully!');
+      await signup({ ...data, role: selectedRole });
     } catch (err: any) {
       console.error('[Registration Error]', err);
       const message = err.message === '{}' || !err.message ? 'Failed to create workspace' : err.message;
@@ -207,21 +216,37 @@ export default function RegisterPage() {
                     <div className="relative">
                       <Input
                         id="password"
-                        type={show ? 'text' : 'password'}
+                        type={showPassword ? 'text' : 'password'}
                         placeholder="Min. 8 characters"
                         className={`h-11 bg-slate-900/60 border-slate-800 text-white pr-10 focus:border-primary/50 focus:ring-primary/20 ${errors.password ? 'border-destructive' : ''}`}
                         {...registerField('password')}
                       />
                       <button
                         type="button"
-                        onClick={() => setShow(!show)}
+                        onClick={() => setShowPassword(!showPassword)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                       >
-                        {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                     {errors.password && (
                       <p className="text-xs text-rose-500 mt-1 font-medium">{errors.password.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="confirmPassword" className="text-slate-300 text-xs font-semibold uppercase tracking-wider">Confirm Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        className={`h-11 bg-slate-900/60 border-slate-800 text-white pr-10 focus:border-primary/50 focus:ring-primary/20 ${errors.confirmPassword ? 'border-destructive' : ''}`}
+                        {...registerField('confirmPassword')}
+                      />
+                    </div>
+                    {errors.confirmPassword && (
+                      <p className="text-xs text-rose-500 mt-1 font-medium">{errors.confirmPassword.message}</p>
                     )}
                   </div>
 

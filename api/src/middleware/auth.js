@@ -35,9 +35,9 @@ const protect = async (req, res, next) => {
         data: {
           id: user.id,
           email: user.email,
-          name: user.user_metadata?.name || user.email.split('@')[0],
+          name: user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0],
           password: '', // No password hash needed as auth is handled by Supabase
-          businessName: user.user_metadata?.businessName || '',
+          businessName: user.user_metadata?.business_name || user.user_metadata?.businessName || '',
           role: user.user_metadata?.role || 'admin',
         }
       });
