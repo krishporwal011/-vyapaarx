@@ -23,6 +23,10 @@ const invoiceRoutes = require('./routes/invoices');
 const analyticsRoutes = require('./routes/analytics');
 const supplierRoutes = require('./routes/suppliers');
 const aiRoutes = require('./routes/ai');
+const cashbookRoutes = require('./routes/cashbook');
+const payrollRoutes = require('./routes/payroll');
+const paymentRoutes = require('./routes/payments');
+const settingsRoutes = require('./routes/settings');
 
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -157,6 +161,10 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/cashbook', cashbookRoutes);
+app.use('/api/payroll', payrollRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/settings', settingsRoutes);
 
 /**
  * ============================================

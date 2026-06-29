@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  Users, UserCheck, UserX, Clock, Search, Plus, Filter, Mail, Phone, MapPin, Calendar, Briefcase, DollarSign
+  Users, UserCheck, UserX, Clock, Search, Plus, Filter, Mail, Phone, MapPin, Calendar, Briefcase, DollarSign, Loader2
 } from 'lucide-react';
+import { useStaff, useCreateStaff, useUpdateStaffStatus } from '@/hooks/api/usePayroll';
 
 interface StaffMember {
   id: string;
@@ -27,9 +28,12 @@ interface StaffMember {
 }
 
 export default function StaffPage() {
+  const { data: staff = [], isLoading } = useStaff();
+  const createStaffMutation = useCreateStaff();
+  const updateStaffStatusMutation = useUpdateStaffStatus();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('All');
-  const [staff, setStaff] = useState<StaffMember[]>([]);
 
   const [newStaff, setNewStaff] = useState({
     name: '',
@@ -44,55 +48,69 @@ export default function StaffPage() {
 
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const handleStatusChange = (id: string, newStatus: 'Present' | 'Absent' | 'Late' | 'Leave') => {
-    setStaff(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m));
-    toast.success(`Marked ${staff.find(m => m.id === id)?.name} as ${newStatus}`);
+  const handleStatusChange = async (id: string, newStatus: 'Present' | 'Absent' | 'Late' | 'Leave') => {
+    try {
+      await updateStaffStatusMutation.mutateAsync({ id, status: newStatus });
+      const employeeName = staff.find((m: any) => m.id === id)?.name || 'Employee';
+      toast.success(`Marked ${employeeName} as ${newStatus}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to update attendance status');
+    }
   };
 
-  const handleAddStaffSubmit = (e: React.FormEvent) => {
+  const handleAddStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaff.name || !newStaff.email || !newStaff.phone) {
       toast.error('Please fulfill all critical staff fields');
       return;
     }
-    const created: StaffMember = {
-      id: `EMP00${staff.length + 1}`,
-      name: newStaff.name,
-      email: newStaff.email,
-      phone: newStaff.phone,
-      role: newStaff.role,
-      department: newStaff.department,
-      salary: Number(newStaff.salary),
-      joiningDate: new Date().toISOString().split('T')[0],
-      status: 'Present',
-      shift: newStaff.shift,
-      address: newStaff.address || 'India'
-    };
-    setStaff([...staff, created]);
-    setNewStaff({
-      name: '',
-      email: '',
-      phone: '',
-      role: 'Staff',
-      department: 'Logistics',
-      salary: 30000,
-      shift: 'Morning',
-      address: ''
-    });
-    setShowAddForm(false);
-    toast.success('Successfully hired new staff member!');
+    try {
+      await createStaffMutation.mutateAsync({
+        name: newStaff.name,
+        email: newStaff.email,
+        phone: newStaff.phone,
+        role: newStaff.role,
+        department: newStaff.department,
+        salary: Number(newStaff.salary),
+        shift: newStaff.shift,
+        address: newStaff.address || 'India'
+      });
+      setNewStaff({
+        name: '',
+        email: '',
+        phone: '',
+        role: 'Staff',
+        department: 'Logistics',
+        salary: 30000,
+        shift: 'Morning',
+        address: ''
+      });
+      setShowAddForm(false);
+      toast.success('Successfully hired new staff member!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to register staff');
+    }
   };
 
-  const filteredStaff = staff.filter(m => {
+  const filteredStaff = staff.filter((m: any) => {
     const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase()) || m.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = selectedRole === 'All' || m.role === selectedRole;
     return matchesSearch && matchesRole;
   });
 
   const totalStaff = staff.length;
-  const presentToday = staff.filter(m => m.status === 'Present' || m.status === 'Late').length;
-  const lateToday = staff.filter(m => m.status === 'Late').length;
-  const absentToday = staff.filter(m => m.status === 'Absent' || m.status === 'Leave').length;
+  const presentToday = staff.filter((m: any) => m.status === 'Present' || m.status === 'Late').length;
+  const lateToday = staff.filter((m: any) => m.status === 'Late').length;
+  const absentToday = staff.filter((m: any) => m.status === 'Absent' || m.status === 'Leave').length;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 text-muted-foreground bg-[#09080F]">
+        <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
+        <p className="text-sm">Synchronizing staff registry...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -245,12 +263,12 @@ export default function StaffPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredStaff.map(m => (
+                    filteredStaff.map((m: any) => (
                       <tr key={m.id} className="hover:bg-muted/10 transition-colors">
                         <td className="p-3">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-full brand-gradient flex items-center justify-center text-[10px] font-bold text-white shrink-0">
-                              {m.name.split(' ').map(w => w[0]).join('')}
+                              {m.name.split(' ').map((w: string) => w[0]).join('')}
                             </div>
                             <div>
                               <p className="text-xs font-semibold text-foreground">{m.name}</p>

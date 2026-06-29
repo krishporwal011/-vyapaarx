@@ -10,20 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
-  TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownLeft, Plus, Calendar, Sparkles, AlertCircle
+  TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownLeft, Plus, Calendar, Sparkles, AlertCircle, Loader2
 } from 'lucide-react';
-
-interface CashTransaction {
-  id: string;
-  type: 'In' | 'Out';
-  category: 'Cash Sale' | 'Supplier Pay' | 'Rent' | 'Staff Salary' | 'Office Expenses';
-  amount: number;
-  date: string;
-  notes: string;
-}
+import { useCashbook, useCreateCashbookEntry } from '@/hooks/api/useCashbook';
 
 export default function CashbookPage() {
-  const [transactions, setTransactions] = useState<CashTransaction[]>([]);
+  const { data: transactions = [], isLoading } = useCashbook();
+  const createMutation = useCreateCashbookEntry();
 
   const [newTx, setNewTx] = useState({
     type: 'In' as 'In' | 'Out',
@@ -34,41 +27,43 @@ export default function CashbookPage() {
 
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const handleAddTx = (e: React.FormEvent) => {
+  const handleAddTx = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTx.amount || Number(newTx.amount) <= 0) {
       toast.error('Please enter a valid transactional amount');
       return;
     }
-    const created: CashTransaction = {
-      id: `TX0${transactions.length + 1}`,
-      type: newTx.type,
-      category: newTx.category,
-      amount: Number(newTx.amount),
-      date: new Date().toISOString().split('T')[0],
-      notes: newTx.notes || 'Business entry'
-    };
-    setTransactions([created, ...transactions]);
-    setNewTx({
-      type: 'In',
-      category: 'Cash Sale',
-      amount: '',
-      notes: ''
-    });
-    setShowAddForm(false);
-    toast.success(`Registered Cash ${newTx.type} entry of ₹${Number(newTx.amount).toLocaleString()} successfully!`);
+    try {
+      await createMutation.mutateAsync({
+        type: newTx.type,
+        category: newTx.category,
+        amount: Number(newTx.amount),
+        notes: newTx.notes || 'Business entry',
+        date: new Date().toISOString()
+      });
+      setNewTx({
+        type: 'In',
+        category: 'Cash Sale',
+        amount: '',
+        notes: ''
+      });
+      setShowAddForm(false);
+      toast.success(`Registered Cash ${newTx.type} entry of ₹${Number(newTx.amount).toLocaleString()} successfully!`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to add cashbook entry');
+    }
   };
 
-  const totalIn = transactions.filter(t => t.type === 'In').reduce((acc, curr) => acc + curr.amount, 0);
-  const totalOut = transactions.filter(t => t.type === 'Out').reduce((acc, curr) => acc + curr.amount, 0);
+  const totalIn = transactions.filter((t: any) => t.type === 'In').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const totalOut = transactions.filter((t: any) => t.type === 'Out').reduce((acc: number, curr: any) => acc + curr.amount, 0);
   const netBalance = totalIn - totalOut;
 
   // Compute daily outlays dynamically from transactions
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const analyticsData = daysOfWeek.map((day) => {
     const expenseForDay = transactions
-      .filter((t) => t.type === 'Out')
-      .reduce((sum, t) => sum + t.amount, 0); // Aggregate all outlays
+      .filter((t: any) => t.type === 'Out')
+      .reduce((sum: number, t: any) => sum + t.amount, 0); // Aggregate all outlays
     return {
       name: day,
       Expenses: expenseForDay,
@@ -205,7 +200,7 @@ export default function CashbookPage() {
                           </td>
                         </tr>
                       ) : (
-                        transactions.map(t => (
+                        transactions.map((t: any) => (
                           <tr key={t.id} className="hover:bg-muted/10 transition-colors">
                             <td className="p-3">
                               <div className="flex items-center gap-2.5">
@@ -216,7 +211,9 @@ export default function CashbookPage() {
                                 )}
                                 <div>
                                   <p className="text-xs font-semibold text-foreground">{t.notes}</p>
-                                  <p className="text-[10px] text-muted-foreground">{t.date}</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {new Date(t.date || t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </p>
                                 </div>
                               </div>
                             </td>

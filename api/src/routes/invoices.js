@@ -28,6 +28,9 @@ router.get('/:id', validate(getInvoiceByIdSchema), invoiceController.getInvoiceB
 // @PUT /api/invoices/:id (Requires admin or accountant)
 router.put('/:id', authorizeRoles('admin', 'accountant'), validate(updateInvoiceSchema), invoiceController.updateInvoice);
 
+// @GET /api/invoices/:id/pdf
+router.get('/:id/pdf', validate(getInvoiceByIdSchema), invoiceController.downloadInvoicePDF);
+
 // @DELETE /api/invoices/:id (Requires admin only)
 router.delete('/:id', authorizeRoles('admin'), validate(getInvoiceByIdSchema), invoiceController.deleteInvoice);
 

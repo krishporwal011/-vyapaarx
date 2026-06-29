@@ -43,80 +43,106 @@ interface Shift {
   attendancePct: string;
 }
 
+import {
+  useStaff, useCreateStaff, useLeaveRequests, useCreateLeaveRequest, useUpdateLeaveStatus, usePayslips, useCreatePayslip, useUpdatePayslipStatus
+} from '@/hooks/api/usePayroll';
+
 export default function PayrollPage() {
-  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
-  const [payslips, setPayslips] = useState<Payslip[]>([]);
-  const [shifts, setShifts] = useState<Shift[]>([]);
+  const { data: staff = [], isLoading: loadingStaff } = useStaff();
+  const { data: leaves = [], isLoading: loadingLeaves } = useLeaveRequests();
+  const { data: payslips = [], isLoading: loadingPayslips } = usePayslips();
+
+  const createStaffMutation = useCreateStaff();
+  const createLeaveMutation = useCreateLeaveRequest();
+  const createPayslipMutation = useCreatePayslip();
+  const updateLeaveStatusMutation = useUpdateLeaveStatus();
+  const updatePayslipStatusMutation = useUpdatePayslipStatus();
+
+  // Computed shifts directly from the database staff list
+  const shifts = staff.map((s: any, idx: number) => ({
+    id: s.id,
+    name: s.name,
+    role: s.role,
+    shift: s.shift || 'Morning Shift (9AM - 6PM)',
+    attendancePct: '100%',
+  }));
 
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [staffForm, setStaffForm] = useState({
     name: '',
-    role: '',
+    role: 'Staff',
     baseSalary: '',
     shift: 'Morning Shift (9AM - 6PM)',
   });
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staffForm.name || !staffForm.role || !staffForm.baseSalary) {
       toast.error('Please fill in all staff registration details');
       return;
     }
 
-    const base = Number(staffForm.baseSalary);
-    const newPayslip: Payslip = {
-      id: `PAY0${payslips.length + 1}`,
-      name: staffForm.name,
-      role: staffForm.role,
-      baseSalary: base,
-      overtimeHours: 0,
-      deductions: 0,
-      bonus: 0,
-      totalPay: base,
-      status: 'Processing',
-    };
+    try {
+      const base = Number(staffForm.baseSalary);
+      const newEmployee = await createStaffMutation.mutateAsync({
+        name: staffForm.name,
+        email: `${staffForm.name.toLowerCase().replace(/ /g, '')}@company.com`,
+        phone: '+91 99999 88888',
+        role: staffForm.role,
+        department: 'Logistics',
+        salary: base,
+        shift: staffForm.shift,
+      });
 
-    const newShift: Shift = {
-      id: `S${shifts.length + 1}`,
-      name: staffForm.name,
-      role: staffForm.role,
-      shift: staffForm.shift,
-      attendancePct: '100%',
-    };
+      // Seeding a leave request and a payslip for the new employee in database
+      await createLeaveMutation.mutateAsync({
+        staffId: newEmployee.id,
+        leaveData: {
+          type: 'Sick',
+          dates: 'May 08 - May 09',
+          days: 2,
+        }
+      });
 
-    // Optionally create a sick leave mock request for the new employee to showcase workflow
-    const newLeave: LeaveRequest = {
-      id: `LR0${leaves.length + 1}`,
-      name: staffForm.name,
-      role: staffForm.role,
-      type: 'Sick',
-      dates: 'May 08 - May 09',
-      days: 2,
-      status: 'Pending',
-    };
+      await createPayslipMutation.mutateAsync({
+        staffId: newEmployee.id,
+        payslipData: {
+          baseSalary: base,
+          overtimeHours: 0,
+          deductions: 0,
+          bonus: 0,
+        }
+      });
 
-    setPayslips([...payslips, newPayslip]);
-    setShifts([...shifts, newShift]);
-    setLeaves([...leaves, newLeave]);
-
-    setStaffForm({
-      name: '',
-      role: '',
-      baseSalary: '',
-      shift: 'Morning Shift (9AM - 6PM)',
-    });
-    setShowAddStaff(false);
-    toast.success(`Registered employee "${staffForm.name}" successfully!`);
+      setStaffForm({
+        name: '',
+        role: 'Staff',
+        baseSalary: '',
+        shift: 'Morning Shift (9AM - 6PM)',
+      });
+      setShowAddStaff(false);
+      toast.success(`Registered employee "${staffForm.name}" successfully!`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to register employee');
+    }
   };
 
-  const handleLeaveDecision = (id: string, decision: 'Approved' | 'Rejected') => {
-    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status: decision } : l));
-    toast.success(`Leave request ${decision.toLowerCase()} successfully!`);
+  const handleLeaveDecision = async (id: string, decision: 'Approved' | 'Rejected') => {
+    try {
+      await updateLeaveStatusMutation.mutateAsync({ id, status: decision });
+      toast.success(`Leave request ${decision.toLowerCase()} successfully!`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to update leave status');
+    }
   };
 
-  const handlePaySalary = (id: string) => {
-    setPayslips(prev => prev.map(p => p.id === id ? { ...p, status: 'Paid' } : p));
-    toast.success(`Dispatched payslip payment successfully!`);
+  const handlePaySalary = async (id: string) => {
+    try {
+      await updatePayslipStatusMutation.mutateAsync({ id, status: 'Paid' });
+      toast.success(`Dispatched payslip payment successfully!`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to update payslip payment status');
+    }
   };
 
   return (
@@ -196,14 +222,14 @@ export default function PayrollPage() {
                       No active leave requests. Awaiting employee submissions.
                     </div>
                   ) : (
-                    leaves.map(l => (
+                    leaves.map((l: any) => (
                       <div key={l.id} className="p-4 flex items-center justify-between hover:bg-muted/5 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                            {l.name.split(' ').map(w => w[0]).join('')}
+                            {(l.staff?.name || 'Staff').split(' ').map((w: string) => w[0]).join('')}
                           </div>
                           <div>
-                            <p className="text-xs font-semibold text-foreground">{l.name} <span className="text-[10px] text-muted-foreground">({l.role})</span></p>
+                            <p className="text-xs font-semibold text-foreground">{l.staff?.name || 'Staff'} <span className="text-[10px] text-muted-foreground">({l.staff?.role || 'Staff'})</span></p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">{l.dates} • <span className="text-primary font-medium">{l.days} {l.days === 1 ? 'day' : 'days'}</span></p>
                           </div>
                         </div>
@@ -248,7 +274,7 @@ export default function PayrollPage() {
                       No shift rosters registered. Add employees to allocate shift schedules automatically.
                     </div>
                   ) : (
-                    shifts.map(s => (
+                    shifts.map((s: any) => (
                       <div key={s.id} className="p-3.5 flex items-center justify-between hover:bg-muted/5 transition-colors">
                         <div>
                           <p className="text-xs font-semibold text-foreground">{s.name}</p>
@@ -298,11 +324,11 @@ export default function PayrollPage() {
                       </td>
                     </tr>
                   ) : (
-                    payslips.map(p => (
+                    payslips.map((p: any) => (
                       <tr key={p.id} className="hover:bg-muted/10 transition-colors">
                         <td className="p-3">
-                          <p className="text-xs font-semibold text-foreground">{p.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{p.role}</p>
+                          <p className="text-xs font-semibold text-foreground">{p.staff?.name || 'Staff'}</p>
+                          <p className="text-[10px] text-muted-foreground">{p.staff?.role || 'Staff'}</p>
                         </td>
                         <td className="p-3 text-xs font-medium text-foreground">₹{p.baseSalary.toLocaleString()}</td>
                         <td className="p-3 text-xs text-foreground font-semibold">{p.overtimeHours} hrs</td>
@@ -317,7 +343,7 @@ export default function PayrollPage() {
                                 Pay Out
                               </Button>
                             ) : (
-                              <Button size="sm" variant="ghost" onClick={() => toast.success(`Downloaded ${p.name}'s PDF Payslip!`)} className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground">
+                              <Button size="sm" variant="ghost" onClick={() => toast.success(`Downloaded ${p.staff?.name || 'Staff'}'s PDF Payslip!`)} className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground">
                                 <Download className="h-3.5 w-3.5" />
                               </Button>
                             )}

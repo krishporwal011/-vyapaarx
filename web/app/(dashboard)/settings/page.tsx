@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { Topbar } from '@/components/layout/Topbar';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -16,9 +16,55 @@ import {
   User, Building2, Bell, Shield, Palette, Camera, Users, CreditCard, Sparkles, Plus, Trash2, Mail, CheckCircle, ArrowRight, Loader2
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { useSettings, useUpdateSettings } from '@/hooks/api/useSettings';
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+
+  const { data: settings, isLoading } = useSettings();
+  const updateSettingsMutation = useUpdateSettings();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    businessName: '',
+    gstin: '',
+    pan: '',
+    street: '',
+    city: '',
+    state: '',
+    pincode: '',
+    country: 'India'
+  });
+
+  useEffect(() => {
+    if (settings) {
+      setFormData({
+        name: settings.user?.name || '',
+        email: settings.user?.email || '',
+        phone: settings.user?.phone || '',
+        businessName: settings.user?.businessName || '',
+        gstin: settings.gstin || '',
+        pan: settings.pan || '',
+        street: settings.user?.street || '',
+        city: settings.user?.city || '',
+        state: settings.user?.state || '',
+        pincode: settings.user?.pincode || '',
+        country: settings.user?.country || 'India'
+      });
+    }
+  }, [settings]);
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await updateSettingsMutation.mutateAsync(formData);
+      toast.success('Settings synchronized successfully!');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to update settings config');
+    }
+  };
 
   // Multi-tenant SaaS team collaboration states
   const [teamMembers, setTeamMembers] = useState([
@@ -65,6 +111,15 @@ export default function SettingsPage() {
     }, 1500);
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-40 text-muted-foreground bg-[#09080F]">
+        <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary" />
+        <p className="text-sm">Synchronizing business configuration settings...</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <Topbar title="Settings" subtitle="Manage account and preferences" />
@@ -83,55 +138,92 @@ export default function SettingsPage() {
 
             {/* Profile */}
             <TabsContent value="profile">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Profile Information</CardTitle>
-                  <CardDescription>Update your personal details and public profile.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center gap-5">
-                    <Avatar className="h-16 w-16">
-                      <AvatarFallback className="brand-gradient text-white text-xl font-bold">TP</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <Button variant="outline" size="sm" className="gap-2"><Camera className="h-3.5 w-3.5" />Change Photo</Button>
-                      <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG up to 2MB</p>
+              <form onSubmit={handleSaveSettings}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Profile Information</CardTitle>
+                    <CardDescription>Update your personal details and public profile.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="flex items-center gap-5">
+                      <Avatar className="h-16 w-16">
+                        <AvatarFallback className="brand-gradient text-white text-xl font-bold">
+                          {(formData.name || 'U').substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <Button type="button" variant="outline" size="sm" className="gap-2"><Camera className="h-3.5 w-3.5" />Change Photo</Button>
+                        <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG up to 2MB</p>
+                      </div>
                     </div>
-                  </div>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5"><Label className="text-xs">Full Name</Label><Input defaultValue="Tanya Porwal" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">Email</Label><Input defaultValue="tanya@vyapaarx.com" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">Phone</Label><Input defaultValue="+91 98765 43210" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">Role</Label><Input defaultValue="Admin" disabled className="opacity-60" /></div>
-                  </div>
-                  <Button className="brand-gradient text-white">Save Changes</Button>
-                </CardContent>
-              </Card>
+                    <Separator />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Full Name</Label>
+                        <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Email</Label>
+                        <Input value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Phone</Label>
+                        <Input value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Role</Label>
+                        <Input defaultValue="Admin" disabled className="opacity-60" />
+                      </div>
+                    </div>
+                    <Button type="submit" disabled={updateSettingsMutation.isPending} className="brand-gradient text-white">
+                      {updateSettingsMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </form>
             </TabsContent>
 
             {/* Business */}
             <TabsContent value="business">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Business Information</CardTitle>
-                  <CardDescription>This information appears on your invoices and documents.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5"><Label className="text-xs">Business Name</Label><Input defaultValue="Vyapaar X Enterprises" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">GSTIN</Label><Input defaultValue="27AAPVY1234F1Z5" className="font-mono" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">PAN</Label><Input defaultValue="AAPVY1234F" className="font-mono" /></div>
-                    <div className="space-y-1.5"><Label className="text-xs">Business Type</Label>
-                      <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm">
-                        <option>Private Limited</option><option>LLP</option><option>Proprietorship</option>
-                      </select>
+              <form onSubmit={handleSaveSettings}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Business Information</CardTitle>
+                    <CardDescription>This information appears on your invoices and documents.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Business Name</Label>
+                        <Input value={formData.businessName} onChange={e => setFormData({...formData, businessName: e.target.value})} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">GSTIN</Label>
+                        <Input value={formData.gstin} onChange={e => setFormData({...formData, gstin: e.target.value})} className="font-mono" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">PAN</Label>
+                        <Input value={formData.pan} onChange={e => setFormData({...formData, pan: e.target.value})} className="font-mono" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Business Type</Label>
+                        <select className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm text-foreground bg-background">
+                          <option>Private Limited</option>
+                          <option>LLP</option>
+                          <option>Proprietorship</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5 col-span-2">
+                        <Label className="text-xs">Registered Address</Label>
+                        <Input value={formData.street} onChange={e => setFormData({...formData, street: e.target.value})} />
+                      </div>
                     </div>
-                    <div className="space-y-1.5 col-span-2"><Label className="text-xs">Registered Address</Label><Input defaultValue="123 Vyapaar Nagar, Mumbai, Maharashtra 400001" /></div>
-                  </div>
-                  <Button className="brand-gradient text-white">Save Changes</Button>
-                </CardContent>
-              </Card>
+                    <Button type="submit" disabled={updateSettingsMutation.isPending} className="brand-gradient text-white">
+                      {updateSettingsMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </CardContent>
+                </Card>
+              </form>
             </TabsContent>
 
             {/* Notifications */}

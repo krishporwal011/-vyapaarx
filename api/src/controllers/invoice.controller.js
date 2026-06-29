@@ -31,6 +31,13 @@ const getInvoiceAnalytics = asyncHandler(async (req, res) => {
   res.json({ success: true, data: analytics });
 });
 
+const downloadInvoicePDF = asyncHandler(async (req, res) => {
+  const pdfBuffer = await invoiceService.generateInvoicePDFBuffer(req.user._id, req.params.id);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename=invoice-${req.params.id}.pdf`);
+  res.send(pdfBuffer);
+});
+
 module.exports = {
   getInvoices,
   createInvoice,
@@ -38,4 +45,5 @@ module.exports = {
   updateInvoice,
   deleteInvoice,
   getInvoiceAnalytics,
+  downloadInvoicePDF,
 };

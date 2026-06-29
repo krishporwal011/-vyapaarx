@@ -11,21 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import {
   CreditCard, QrCode, ArrowUpDown, Search, FileText, Check, AlertCircle, RefreshCw, Landmark, ExternalLink
 } from 'lucide-react';
-
-interface Transaction {
-  id: string;
-  amount: number;
-  status: 'SUCCESS' | 'PENDING' | 'FAILED';
-  upiId: string;
-  razorpayId: string;
-  invoiceId: string;
-  payerName: string;
-  settlementStatus: 'SETTLED' | 'UNSETTLED';
-  createdAt: string;
-}
+import { useTransactions, useCreateTransaction } from '@/hooks/api/usePayments';
+import { useInvoices } from '@/hooks/api/useInvoices';
 
 export default function PaymentsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { data: invoicesData } = useInvoices({ limit: 100 });
+  const { data: transactions = [], isLoading } = useTransactions();
+  const createTxnMutation = useCreateTransaction();
 
   const [qrAmount, setQrAmount] = useState('');
   const [payerNameInput, setPayerNameInput] = useState('');
@@ -52,43 +44,57 @@ export default function PaymentsPage() {
     }, 1000);
   };
 
-  const handleCreateMockTransaction = () => {
+  const handleCreateMockTransaction = async () => {
     if (!qrAmount) return;
-    const newTxn: Transaction = {
-      id: `TXN-${Math.floor(1000 + Math.random() * 9000)}`,
-      amount: Number(qrAmount),
-      status: 'SUCCESS',
-      upiId: 'client@okupi',
-      razorpayId: `pay_${Math.random().toString(36).substring(2, 11)}`,
-      invoiceId: `INV-2026-000${transactions.length + 3}`,
-      payerName: payerNameInput || 'Walk-In Client',
-      settlementStatus: 'SETTLED',
-      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
-    };
-    setTransactions([newTxn, ...transactions]);
-    toast.success('Transaction logged & settled instantly!');
+    try {
+      const realInvoices = invoicesData?.data || [];
+      const targetInvoice = realInvoices.find((inv: any) => inv.paymentStatus === 'UNPAID') || realInvoices[0];
+
+      if (!targetInvoice) {
+        toast.error('Please create an Invoice first before registering a payment!');
+        return;
+      }
+
+      await createTxnMutation.mutateAsync({
+        invoiceId: targetInvoice.id,
+        amount: Number(qrAmount),
+        paymentMethod: 'UPI',
+        referenceNumber: `TXN-${Math.floor(100000 + Math.random() * 900000)}`,
+        status: 'SUCCESS',
+        upiId: 'client@okupi',
+        razorpayId: `pay_${Math.random().toString(36).substring(2, 11)}`,
+        payerName: payerNameInput || 'Walk-In Client',
+        settlementStatus: 'SETTLED',
+      });
+      toast.success('Transaction logged & settled instantly!');
+      setQrAmount('');
+      setPayerNameInput('');
+      setGeneratedQr(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Failed to record transaction');
+    }
   };
 
   const handleExportCSV = () => {
     toast.success('Transaction ledger exported as CSV!');
   };
 
-  const filteredTxns = transactions.filter(t => {
-    const matchesSearch = t.payerName.toLowerCase().includes(search.toLowerCase()) ||
+  const filteredTxns = transactions.filter((t: any) => {
+    const matchesSearch = (t.payerName || '').toLowerCase().includes(search.toLowerCase()) ||
                           t.id.toLowerCase().includes(search.toLowerCase()) ||
-                          t.invoiceId.toLowerCase().includes(search.toLowerCase());
+                          (t.invoice?.invoiceNumber || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === 'ALL' || t.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   // Calculate dynamics KPIs based on real transaction states
   const settledTotal = transactions
-    .filter((t) => t.status === 'SUCCESS' && t.settlementStatus === 'SETTLED')
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((t: any) => t.status === 'SUCCESS' && t.settlementStatus === 'SETTLED')
+    .reduce((sum: number, t: any) => sum + t.amount, 0);
 
   const pendingTotal = transactions
-    .filter((t) => t.status === 'PENDING' || (t.status === 'SUCCESS' && t.settlementStatus === 'UNSETTLED'))
-    .reduce((sum, t) => sum + t.amount, 0);
+    .filter((t: any) => t.status === 'PENDING' || (t.status === 'SUCCESS' && t.settlementStatus === 'UNSETTLED'))
+    .reduce((sum: number, t: any) => sum + t.amount, 0);
 
   return (
     <>
@@ -277,15 +283,15 @@ export default function PaymentsPage() {
                       </td>
                     </tr>
                   ) : (
-                    filteredTxns.map(t => (
+                    filteredTxns.map((t: any) => (
                       <tr key={t.id} className="hover:bg-muted/10 transition-colors">
                         <td className="p-3 text-xs font-semibold text-foreground flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-[9px] font-bold">{t.id}</Badge>
+                          <Badge variant="outline" className="text-[9px] font-bold">{t.id.substring(0, 8)}</Badge>
                         </td>
-                        <td className="p-3 text-xs text-slate-300 font-medium">{t.invoiceId}</td>
-                        <td className="p-3 text-xs text-foreground font-semibold">{t.payerName}</td>
+                        <td className="p-3 text-xs text-slate-300 font-medium">{t.invoice?.invoiceNumber || 'N/A'}</td>
+                        <td className="p-3 text-xs text-foreground font-semibold">{t.payerName || 'Walk-In Customer'}</td>
                         <td className="p-3 text-xs font-bold text-white">₹{t.amount.toLocaleString('en-IN')}</td>
-                        <td className="p-3 text-xs text-muted-foreground">{t.razorpayId}</td>
+                        <td className="p-3 text-xs text-muted-foreground">{t.razorpayId || 'N/A'}</td>
                         <td className="p-3">
                           <Badge
                             variant={t.status === 'SUCCESS' ? 'default' : t.status === 'PENDING' ? 'secondary' : 'destructive'}
@@ -304,7 +310,9 @@ export default function PaymentsPage() {
                             {t.settlementStatus}
                           </Badge>
                         </td>
-                        <td className="p-3 text-xs text-muted-foreground text-right">{t.createdAt}</td>
+                        <td className="p-3 text-xs text-muted-foreground text-right">
+                          {new Date(t.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                        </td>
                       </tr>
                     ))
                   )}

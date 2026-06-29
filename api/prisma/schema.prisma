@@ -35,11 +35,14 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  products     Product[]
-  customers    Customer[]
-  orders       Order[]
-  invoices     Invoice[]
-  suppliers    Supplier[]
+  products        Product[]
+  customers       Customer[]
+  orders          Order[]
+  invoices        Invoice[]
+  suppliers       Supplier[]
+  businessConfig  BusinessConfig?
+  cashbookEntries CashbookEntry[]
+  staff           Staff[]
 }
 
 model Product {
@@ -195,6 +198,15 @@ model Payment {
   paymentMethod   String
   referenceNumber String?
   paymentDate     DateTime @default(now())
+
+  // Extended fields for UPI/Razorpay integrations
+  status           String   @default("SUCCESS") // SUCCESS, PENDING, FAILED
+  upiId            String?
+  razorpayId       String?
+  payerName        String?
+  settlementStatus String   @default("SETTLED") // SETTLED, UNSETTLED
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @default(now()) @updatedAt
 }
 
 model TaxRecord {
@@ -227,4 +239,77 @@ model Supplier {
   updatedAt    DateTime  @updatedAt
 
   invoices     Invoice[]
+}
+
+model BusinessConfig {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  gstin         String?
+  pan           String?
+  bankName      String?
+  accountNo     String?
+  ifscCode      String?
+  invoicePrefix String   @default("INV")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model CashbookEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // "In" or "Out"
+  category  String   // "Cash Sale", "Supplier Pay", "Rent", "Staff Salary", "Office Expenses", etc.
+  amount    Float
+  notes     String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Staff {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  name          String
+  email         String
+  phone         String
+  role          String         // Manager, Accountant, Inventory Operator, Staff
+  department    String         @default("Logistics")
+  salary        Float          @default(30000)
+  joiningDate   DateTime       @default(now())
+  status        String         @default("Present") // Present, Absent, Late, Leave
+  shift         String         @default("Morning") // Morning, Evening
+  address       String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  leaveRequests LeaveRequest[]
+  payslips      Payslip[]
+}
+
+model LeaveRequest {
+  id        String   @id @default(uuid())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  type      String   // Sick, Casual, Unpaid
+  dates     String   // e.g. "May 08 - May 09"
+  days      Int
+  status    String   @default("Pending") // Pending, Approved, Rejected
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payslip {
+  id            String   @id @default(uuid())
+  staffId       String
+  staff         Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  baseSalary    Float
+  overtimeHours Float    @default(0)
+  deductions    Float    @default(0)
+  bonus         Float    @default(0)
+  totalPay      Float
+  status        String   @default("Processing") // Paid, Processing
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

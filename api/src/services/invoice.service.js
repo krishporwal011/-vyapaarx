@@ -326,6 +326,21 @@ const getInvoiceAnalytics = async (userId) => {
   };
 };
 
+const { generateInvoicePDF } = require('../utils/pdf');
+const { uploadInvoicePDF } = require('../utils/storage');
+
+const generateInvoicePDFBuffer = async (userId, invoiceId) => {
+  const invoice = await getInvoiceById(userId, invoiceId);
+  const pdfBuffer = await generateInvoicePDF(invoice);
+  
+  // Asynchronously back up to Supabase Storage
+  uploadInvoicePDF(invoice.invoiceNumber, pdfBuffer).catch((err) => {
+    console.error('[Invoice Service] Background PDF upload failed:', err.message);
+  });
+  
+  return pdfBuffer;
+};
+
 module.exports = {
   getInvoices,
   createInvoice,
@@ -333,4 +348,5 @@ module.exports = {
   updateInvoice,
   deleteInvoice,
   getInvoiceAnalytics,
+  generateInvoicePDFBuffer,
 };
