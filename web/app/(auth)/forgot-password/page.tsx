@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Zap, Loader2, Sparkles, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+import { toast } from 'react-hot-toast';
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,8 +24,13 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
     try {
       await resetPassword(email);
-    } catch (err) {
-      console.error('[Forgot Password Error]', err);
+    } catch (err: any) {
+      console.error("Forgot Password Error:", err);
+      let message = err?.message || err?.error_description || err?.details || "Unknown error";
+      if (message === '{}' || !message) {
+        message = "Failed to send reset email. Your Supabase SMTP provider might be rate-limited or unconfigured.";
+      }
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
