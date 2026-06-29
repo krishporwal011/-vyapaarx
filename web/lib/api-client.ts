@@ -1,6 +1,8 @@
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 
+import { supabase } from '@/lib/supabase';
+
 export const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001/api',
   withCredentials: true,
@@ -9,11 +11,27 @@ export const apiClient = axios.create({
   },
 });
 
-apiClient.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+apiClient.interceptors.request.use(async (config) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token && config.headers) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('token', session.access_token);
+      }
+    } else if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching Supabase session in api-client:', error);
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('token');
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
   }
   return config;
