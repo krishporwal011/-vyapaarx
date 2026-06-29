@@ -36,40 +36,9 @@ const PORT = process.env.PORT || 5000;
 
 /**
  * ============================================
- * SECURITY MIDDLEWARE
- * ============================================
- */
-
-/**
- * Helmet Security Headers
- */
-app.use(helmet());
-
-/**
- * Rate Limiting
- */
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many requests. Please try again later.',
-  },
-});
-
-/**
- * Apply Rate Limiter to API
- */
-app.use('/api', apiLimiter);
-
-/**
- * ============================================
  * ALLOWED ORIGINS
  * ============================================
  */
-
 const allowedOrigins = [
   'http://localhost:3000',
   'https://vyapaarx.vercel.app',
@@ -80,47 +49,69 @@ const allowedOrigins = [
  * CORS CONFIGURATION
  * ============================================
  */
+const corsOptions = {
+  origin: function (origin, callback) {
+    /**
+     * Allow:
+     * - Postman
+     * - Mobile apps
+     * - Server-to-server requests
+     */
+    if (!origin) {
+      return callback(null, true);
+    }
 
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      /**
-       * Allow:
-       * - Postman
-       * - Mobile apps
-       * - Server-to-server requests
-       */
-      if (!origin) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    return callback(
+      new Error(`CORS policy violation: ${origin} not allowed`)
+    );
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
+};
 
-      return callback(
-        new Error(`CORS policy violation: ${origin} not allowed`)
-      );
-    },
-    credentials: true,
-  })
-);
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 /**
  * ============================================
  * BODY PARSERS
  * ============================================
  */
-
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+/**
+ * ============================================
+ * SECURITY HEADERS & RATE LIMITING
+ * ============================================
+ */
+app.use(helmet());
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS', // Do not rate limit preflight requests
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again later.',
+  },
+});
+
+app.use('/api', apiLimiter);
 
 /**
  * ============================================
  * COOKIES + LOGGING
  * ============================================
  */
-
 app.use(cookieParser());
 app.use(morgan('dev'));
 
